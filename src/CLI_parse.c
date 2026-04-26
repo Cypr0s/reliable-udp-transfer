@@ -1,11 +1,11 @@
 /** ------------- IPK 2 - RDT ---------------
- * @file    CLIparse.c
- * @author  Kristian Luptak (xluptak00)
- * @date    26.4.2026
- * @brief   CLI argument parsing module
+ * @headerfile  CLI_parse.c
+ * @author      Kristian Luptak (xluptak00)
+ * @date        26.4.2026
+ * @brief       CLI argument parsing module
  */
 
-#include "CLIparse.h"
+#include "CLI_parse.h"
 
 #define BASE 10
 

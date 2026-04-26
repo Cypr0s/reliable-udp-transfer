@@ -1,3 +1,10 @@
+/** ------------- IPK 2 - RDT ---------------
+ * @headerfile  error.h
+ * @author      Kristian Luptak (xluptak00)
+ * @date        26.4.2026
+ * @brief       error functions and error codes
+ */
+
 #ifndef ERROR_H
 #define ERROR_H
 
@@ -10,7 +17,7 @@ typedef enum ExitEnum {
     EXIT_PARSE = 2,
     EXIT_HELP = 3, // defined as non zero but its NOT an error, code will exit with 0
     EXIT_GETADDRINFO = 4,
-    EXIT_GETIFADDRS = 5,
+    EXIT_SOCKET = 5,
     EXIT_MALLOC = 99,
 } ExitCode;
 

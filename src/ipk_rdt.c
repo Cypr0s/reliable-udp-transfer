@@ -1,13 +1,11 @@
-#include "ipk-rdt.h"
+/** ------------- IPK 2 - RDT ---------------
+ * @file    ipk_rdt.c
+ * @author  Kristian Luptak (xluptak00)
+ * @date    26.4.2026
+ * @brief   Main file for the RDT
+ */
 
-#define CHECK_ERR(exitcode) do {
-    if(exit != EXIT_SUCCESS) {
-        if(addresses != NULL) {
-            freeaddrinfo(addresses);
-        }
-        return exit;
-    }
-} while(0);
+#include "ipk_rdt.h"
 
 int main(int argc, char** argv) {
     Args args = {0};
@@ -30,8 +28,20 @@ int main(int argc, char** argv) {
     }
 
     // create socket
-
+    int32_t socket_fd = create_socket(addresses);
+    if(socket_fd == -1) {
+        freeaddrinfo(addresses);
+        return EXIT_SOCKET;
+    }
     // actually run app for server or client
+    if(args.app_side == SERVER) {
+        exit = run_as_server(socket_fd, addresses, &args);
+    }
+    else if(args.app_side == CLIENT) {
+        exit = run_as_client(socket_fd, addresses, &args);
+    }
+
     freeaddrinfo(addresses);
+    close(socket_fd);
     return EXIT_SUCCESS;
 }

@@ -7,6 +7,6 @@ so 192 bits for header = 24 bytes
 1024 BYTES for payload MAX
 looks like this
 \-------------
-32 con_id   |  32 seq      |    32 ack     |     32 checksum    |     8   flags    | 16   payload  |   8 padding  | payload 1024 bytes MAX
+32 con_id   |  32 seq      |    32 ack     |     32 checksum    |  16   payload   |     8   flags    |   8 padding  | payload 1024 bytes MAX
 
 Algorithm chosen Selective repeat

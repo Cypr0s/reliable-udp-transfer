@@ -1,3 +1,10 @@
+/** ------------- IPK 2 - RDT ---------------
+ * @headerfile  CLI_parse.h
+ * @author      Kristian Luptak (xluptak00)
+ * @date        26.4.2026
+ * @brief       CLI argument parsing module
+ */
+
 #ifndef CLIPARSE_H
 #define CLIPARSE_H
 
