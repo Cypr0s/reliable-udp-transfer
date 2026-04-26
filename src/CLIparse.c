@@ -1,4 +1,4 @@
-/** ------------- IPK 2 - RDT -------------
+/** ------------- IPK 2 - RDT ---------------
  * @file    CLIparse.c
  * @author  Kristian Luptak (xluptak00)
  * @date    26.4.2026
