@@ -18,6 +18,9 @@ typedef enum ExitEnum {
     EXIT_HELP = 3, // defined as non zero but its NOT an error, code will exit with 0
     EXIT_GETADDRINFO = 4,
     EXIT_SOCKET = 5,
+    EXIT_OPEN = 6,
+    EXIT_CLOCK = 7,
+    EXIT_TIMEOUT = 8,
     EXIT_MALLOC = 99,
 } ExitCode;
 

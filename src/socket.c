@@ -22,3 +22,15 @@ int32_t create_socket(struct addrinfo* address) {
     return socket_fd;
 }
 
+ExitCode bind_socket(int32_t socket_fd, struct addrinfo* address) {
+    if(socket_fd == -1 || address == NULL) {
+        return EXIT_SOCKET;
+    }
+    int32_t result = bind(socket_fd, address->ai_addr, address->ai_addrlen);
+    if(result == -1) {
+        perror("bind");
+        return EXIT_SOCKET;
+    }
+    return EXIT_SUCCESS;
+}
+

@@ -14,17 +14,8 @@
 #include <string.h> // strcmp
 #include <limits.h> // type limits
 #include <stdlib.h> // strtol <- defined also in error.h
-#include "util.h"   // AppSideEnum
+#include "util.h"   // AppSideEnum, 
 
-
-typedef struct {
-    AppSideEnum app_side;
-    uint16_t port;  // port
-    char* address; // ip address / hostname
-    char* file_in; // file to read from (client)
-    char* file_out; // file to write to (server)
-    uint32_t timeout_sec;
-} Args, *ArgsPtr;
 
 ExitCode parse_arguments(int argc, char** argv, ArgsPtr args);
 
