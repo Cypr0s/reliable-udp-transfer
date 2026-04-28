@@ -9,7 +9,7 @@
 
 ExitCode run_as_server(int32_t socket_fd, struct addrinfo* address, ArgsPtr args);
 
-ExitCode server_handle_handshake(int32_t socket_fd, 
+ExitCode server_handshake(int32_t socket_fd, 
                                 uint32_t max_timeout, 
                                 uint32_t* expected_seq,
                                 uint32_t* conn_id
@@ -21,5 +21,11 @@ ExitCode receive_data(int32_t socket_fd,
                         uint32_t* seq,
                         uint32_t conn_id
                     );
+
+ExitCode server_teardown(int32_t socket_fd, 
+                         uint32_t max_timeout, 
+                         uint32_t expected_seq,
+                         uint32_t conn_id
+                        );
 
 #endif // SERVER_H

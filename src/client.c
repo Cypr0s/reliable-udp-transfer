@@ -1,20 +1,24 @@
 #include "client.h"
 
 ExitCode run_as_client(int32_t socket_fd, struct addrinfo* address, ArgsPtr args) {
-    int32_t in_fd = open(args->file_in, args->app_side);
+    int32_t in_fd = open_file(args->file_in, args->app_side);
     ExitCode exit = EXIT_SUCCESS;
     if(in_fd == -1) return EXIT_OPEN;
 
     // connect socket
     if(connect(socket_fd, address->ai_addr, address->ai_addrlen)){
         perror("connect");
-        close(in_fd);
+        if(in_fd != STDERR_FILENO && in_fd != STDIN_FILENO && in_fd != STDOUT_FILENO) {
+            close(in_fd);
+        }
         return EXIT_SOCKET;
     }
 
     // set resending timer
     if(set_receive_timeout(socket_fd, RESEND_TIMEOUT)) {
-        close(in_fd);
+        if(in_fd != STDERR_FILENO && in_fd != STDIN_FILENO && in_fd != STDOUT_FILENO) {
+            close(in_fd);
+        }
         return EXIT_SOCKET;
     }
 
@@ -24,18 +28,25 @@ ExitCode run_as_client(int32_t socket_fd, struct addrinfo* address, ArgsPtr args
 
     exit = handle_connection(socket_fd, args->timeout_sec, &seq, conn_id, FLAG_SYN);
     if(exit) {
-        close(in_fd);
+        if(in_fd != STDERR_FILENO && in_fd != STDIN_FILENO && in_fd != STDOUT_FILENO) {
+            close(in_fd);
+        }
         return exit;
     }
 
     exit = send_data(socket_fd, in_fd, args->timeout_sec, &seq, conn_id);
     if(exit) {
-        close(in_fd); 
+        if(in_fd != STDERR_FILENO && in_fd != STDIN_FILENO && in_fd != STDOUT_FILENO) {
+            close(in_fd);
+        }
         return exit;
     }
 
     exit = handle_connection(socket_fd, args->timeout_sec, &seq, conn_id, FLAG_FIN);
-    close(in_fd);
+    
+    if(in_fd != STDERR_FILENO && in_fd != STDIN_FILENO && in_fd != STDOUT_FILENO) {
+        close(in_fd);
+    }
     return exit;
 }
 
@@ -46,6 +57,7 @@ ExitCode handle_connection(int32_t socket_fd,
                                 FlagsEnum H_F_flag
                             ) {
     // create first packet SYN / FIN
+
     char message[MAX_PROTOCOL_SIZE];
     char* msg = message;
     create_header(H_F_flag, NULL, 0, &msg, conn_id, (*seq)++, 0);
@@ -67,31 +79,34 @@ ExitCode handle_connection(int32_t socket_fd,
 
         int32_t received = recv(socket_fd, message, MAX_PROTOCOL_SIZE, 0);
         exit = resolve_timeout(last_timeout, max_timeout * S_TO_MS);
-        if(exit) return exit;
+        if(exit) {
+            fprintf(stderr, "Maximum timeout time has passed\n");
+            return exit;
+        }
 
         if(received <= 0) {
             if(errno == EAGAIN || errno == EWOULDBLOCK) continue;
             return EXIT_SOCKET;
         }
+        if(check_malformed((unsigned char*)message, received) != EXIT_SUCCESS) continue;
 
-        if(check_malformed((unsigned char*)message, received, &conn_id) != EXIT_SUCCESS) continue;
-
-        // check for correct ack num
+        // check for valid packet
         ProtocolHeaderPtr header = (ProtocolHeaderPtr) message;
+        if(header->conn_id != conn_id) continue;
         if(header->flags != (FLAG_ACK | H_F_flag)) continue;
         if(header->ack_num == *seq) break;
     }
 
     // send ack back
     ProtocolHeaderPtr header = (ProtocolHeaderPtr) message;
-    create_header(FLAG_ACK, NULL, 0, &msg, conn_id, (*seq)++, header->seq_num + 1);
+    create_header(FLAG_ACK, NULL, 0, &msg, conn_id, 0, header->seq_num + 1);
     // send
     int32_t bytes = send(socket_fd, msg, HEADER_SIZE, 0);
     if(bytes <= 0) {
         perror("sendto");
         return EXIT_SOCKET;
     }
-
+    (*seq)++;
     return EXIT_SUCCESS;
 }
 
@@ -129,17 +144,21 @@ ExitCode send_data(int32_t socket_fd,
 
             int32_t received = recv(socket_fd, message, MAX_PROTOCOL_SIZE, 0);
             exit = resolve_timeout(last_timeout, max_timeout * S_TO_MS);
-            if(exit) return exit;
+            if(exit) {
+                fprintf(stderr, "Maximum timeout time has passed\n");
+                return exit;
+            }
 
             if(received <= 0) {
                 if(errno == EAGAIN || errno == EWOULDBLOCK) continue;
                 return EXIT_SOCKET;
             }
 
-            if(check_malformed((unsigned char*)message, received, &conn_id) != EXIT_SUCCESS) continue;
+            if(check_malformed((unsigned char*)message, received) != EXIT_SUCCESS) continue;
 
             // check for correct ack num
             ProtocolHeaderPtr header = (ProtocolHeaderPtr) message;
+            if(header->conn_id != conn_id) continue;
             if(header->flags != FLAG_ACK) continue;
             if(header->ack_num == *seq + 1) break;
         }

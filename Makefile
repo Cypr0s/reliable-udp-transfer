@@ -6,7 +6,7 @@
 
 #compiling
 CC=gcc
-CFLAGS= -std=gnu17 -pedantic -Wall -Wextra
+CFLAGS= -std=gnu17 -pedantic -Wall -Wextra -g
 FILE_LOC= src/
 
 OBJ= 	ipk_rdt.o			\
