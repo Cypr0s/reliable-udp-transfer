@@ -10,7 +10,9 @@
 #include "error.h"  // error codes
 #include <time.h>
 
+#define S_TO_MS 1000
 
+#define RESEND_TIMEOUT 256
 
 typedef enum {
     NONE = 0,
@@ -37,6 +39,6 @@ typedef struct {
 
 int32_t open_file(const char* path, AppSideEnum app_side);
 
-ExitCode resolve_timeout(struct timespec last_sent, uint32_t max_timeout);
+ExitCode resolve_timeout(struct timespec last_sent, uint32_t max_timeout_ms);
 
 #endif // UTIL_H

@@ -21,13 +21,13 @@ int32_t open_file(const char* path, AppSideEnum app_side) {
 } // open_file
 
 
-ExitCode resolve_timeout(struct timespec last_sent, uint32_t max_timeout) {
+ExitCode resolve_timeout(struct timespec last_sent, uint32_t max_timeout_ms) {
     struct timespec curr_time;
     if(clock_gettime(CLOCK_MONOTONIC, &curr_time) != 0) {
         perror("clock_gettime");
         return EXIT_CLOCK;
     }
-    if(curr_time.tv_sec - last_sent.tv_sec >= max_timeout) {
+    if(((curr_time.tv_sec - last_sent.tv_sec) * S_TO_MS) >= max_timeout_ms) {
         fprintf(stderr, "Maximum timeout time has passed\n");
         return EXIT_TIMEOUT;
     }

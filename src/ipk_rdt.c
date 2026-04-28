@@ -41,5 +41,5 @@ int main(int argc, char** argv) {
 
     freeaddrinfo(addresses);
     close(socket_fd);
-    return EXIT_SUCCESS;
+    return exit;
 }

@@ -1,20 +1,22 @@
 #include "server.h"
 
 ExitCode run_as_server(int32_t socket_fd, struct addrinfo* address, ArgsPtr args) {
-    int out_fd = open_file(args->file_out, args->app_side);
-    if(out_fd == -1) {
-        return EXIT_OPEN;
-    }
+    ExitCode exit = EXIT_SUCCESS;
+    int32_t out_fd = open_file(args->file_out, args->app_side);
+    if(out_fd == -1) return EXIT_OPEN;
+
     if(bind_socket(socket_fd, address) != EXIT_SUCCESS) {
-        close(out_fd);
         return EXIT_SOCKET;
     }
 
     // handshake
+    uint32_t expected_seq, conn_id;
+    exit = server_handle_handshake(socket_fd, args->timeout_sec, &expected_seq, &conn_id);
+    if(exit) return exit;
     // data transfer
+    exit = receive_data(socket_fd, out_fd, args->timeout_sec, expected_seq, conn_id);
     // teardown
 
-    close(out_fd);
     return EXIT_SUCCESS;
 }
 
@@ -40,13 +42,13 @@ ExitCode server_handle_handshake(int32_t socket_fd,
     ExitCode exit = EXIT_SUCCESS;
     // wait for empty SYN until timeout
     while(1) {
-        exit = resolve_timeout(last_timeout, max_timeout);
+        exit = resolve_timeout(last_timeout, max_timeout * S_TO_MS);
         if(exit) return exit;
         // at max returned MAX_PROTOCOL_SIZE bytes, int is enough
         int32_t received = recvfrom(socket_fd, buffer, MAX_PROTOCOL_SIZE, MSG_DONTWAIT, (struct sockaddr *)&client_addr, &client_addr_size);
         if (received <= 0) {
             // not timeout yet (socket timeout)
-            if(received == EAI_AGAIN || errno == EWOULDBLOCK) continue;
+            if(errno == EAGAIN || errno == EWOULDBLOCK) continue;
             return EXIT_SOCKET;
         }
         
@@ -58,18 +60,18 @@ ExitCode server_handle_handshake(int32_t socket_fd,
     *conn_id = ((ProtocolHeaderPtr) buffer)->conn_id;
 
     // connect
-    if(connect(socket_fd, (struct sockaddr*) &client_addr, &client_addr_size) == -1) {
+    if(connect(socket_fd, (struct sockaddr*) &client_addr, client_addr_size) == -1) {
         perror("connect");
-        return exit;
+        return EXIT_SOCKET;
     }
 
-    uint32_t message_seq = ((ProtocolHeaderPtr) buffer)->seq_num;
+    *expected_seq = ((ProtocolHeaderPtr) buffer)->seq_num;
 
     // create SYN + ACK and send back
     char message_back[HEADER_SIZE];
     char* msg = message_back;
-
-    create_header(SYN | ACK, NULL, 0, &msg, *conn_id, message_seq, message_seq + 1);
+    uint32_t server_seq = rand();
+    create_header(SYN | ACK, NULL, 0, &msg, *conn_id, server_seq, ++(*expected_seq));
     
     // send
     int32_t bytes = send(socket_fd, msg, HEADER_SIZE, 0);
@@ -84,11 +86,33 @@ ExitCode server_handle_handshake(int32_t socket_fd,
         return EXIT_CLOCK;
     }
 
-    // wait for empty ack
+    // start resend timeout
+    struct timespec resend_timeout;
+    if(clock_gettime(CLOCK_MONOTONIC, &resend_timeout) != 0) {
+        perror("clock_gettime");
+        return EXIT_CLOCK;
+    }
+
+    // wait for empty ack, or retransmit
     while(1) {
-        exit = resolve_timeout(last_timeout, max_timeout);
+        exit = resolve_timeout(last_timeout, max_timeout * S_TO_MS);
         if(exit) return exit;
-        
+
+        // resend if no response
+        exit = resolve_timeout(resend_timeout, RESEND_TIMEOUT);
+        if(exit) {
+            // resend
+            int32_t bytes = send(socket_fd, msg, HEADER_SIZE, 0);
+            if(bytes <= 0) {
+                perror("sendto");
+                return EXIT_SOCKET;
+            }
+            // reset timer
+            if(clock_gettime(CLOCK_MONOTONIC, &resend_timeout) != 0) {
+                perror("clock_gettime");
+                return EXIT_CLOCK;
+            }
+        }
         // receive from connected
         int32_t received = recv(socket_fd, buffer, MAX_PROTOCOL_SIZE, MSG_DONTWAIT);
         if(received <= 0) {
@@ -98,9 +122,13 @@ ExitCode server_handle_handshake(int32_t socket_fd,
         
         // check malformed packet
         if(check_malformed((unsigned char*)buffer, received, ACK, conn_id) != EXIT_SUCCESS) continue;
-        break;
+    
+        ProtocolHeaderPtr header = (ProtocolHeaderPtr) buffer;
+        if(*expected_seq == header->seq_num && header->ack_num == server_seq + 1) break;
     }
     // sucessfull handshake
-    *expected_seq = ((ProtocolHeaderPtr) buffer)->seq_num + 1;
+    (*expected_seq)++;
     return EXIT_SUCCESS;
 }
+
+

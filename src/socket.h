@@ -12,4 +12,5 @@ int32_t create_socket(struct addrinfo* address);
 
 ExitCode bind_socket(int32_t socket_fd, struct addrinfo* address);
 
+
 #endif // SOCKET_H
