@@ -41,4 +41,4 @@ uint16_t calculate_checksum(unsigned char* addr, uint32_t count);
 
 ExitCode validate_checksum(ProtocolHeaderPtr header, int32_t size);
 
-ExitCode check_malformed(unsigned char* buffer, int32_t received, uint8_t expected_flags, uint32_t* expected_conn_id);
+ExitCode check_malformed(unsigned char* buffer, int32_t received, uint32_t* expected_conn_id);

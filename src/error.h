@@ -23,6 +23,7 @@ typedef enum ExitEnum {
     EXIT_TIMEOUT = 8,
     EXIT_CORRUPT = 9,
     EXIT_READ = 10,
+    EXIT_WRITE = 11,
     EXIT_MALLOC = 99,
 } ExitCode;
 

@@ -58,7 +58,7 @@ ExitCode validate_checksum(ProtocolHeaderPtr header, int32_t size) {
     return EXIT_SUCCESS;
 }
 
-ExitCode check_malformed(unsigned char* buffer, int32_t received, uint8_t expected_flags, uint32_t* expected_conn_id) {
+ExitCode check_malformed(unsigned char* buffer, int32_t received, uint32_t* expected_conn_id) {
     // not long enough
     if(received < HEADER_SIZE) {
         return EXIT_CORRUPT;
@@ -70,13 +70,7 @@ ExitCode check_malformed(unsigned char* buffer, int32_t received, uint8_t expect
         return EXIT_CORRUPT;
     }
     
-    // check flags
-    if(header->flags != expected_flags) {
-        return EXIT_CORRUPT;
-    }
-    
     // check connection id (skip if expected_conn_id is 0)
-    
     if(expected_conn_id != NULL && header->conn_id != *expected_conn_id) {
         return EXIT_CORRUPT;
     }

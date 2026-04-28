@@ -8,11 +8,13 @@ ExitCode run_as_client(int32_t socket_fd, struct addrinfo* address, ArgsPtr args
     // connect socket
     if(connect(socket_fd, address->ai_addr, address->ai_addrlen)){
         perror("connect");
+        close(in_fd);
         return EXIT_SOCKET;
     }
 
     // set resending timer
     if(set_receive_timeout(socket_fd, RESEND_TIMEOUT)) {
+        close(in_fd);
         return EXIT_SOCKET;
     }
 
@@ -20,21 +22,33 @@ ExitCode run_as_client(int32_t socket_fd, struct addrinfo* address, ArgsPtr args
     conn_id = (uint32_t) rand();
     start_seq = (uint32_t) rand();
 
-    exit = client_handle_handshake(socket_fd, args->timeout_sec, &start_seq, conn_id);
+    exit = handle_connection(socket_fd, args->timeout_sec, &start_seq, conn_id, SYN);
+    if(exit) {
+        close(in_fd);
+        return exit;
+    }
 
+    exit = send_data(socket_fd, in_fd, args->timeout_sec, start_seq, conn_id);
+    if(exit) {
+        close(in_fd); 
+        return exit;
+    }
+
+    exit = handle_connection(socket_fd, args->timeout_sec, &start_seq, conn_id, FIN);
+    close(in_fd);
+    return exit;
 }
 
-ExitCode client_handle_handshake(int32_t socket_fd, 
+ExitCode handle_connection(int32_t socket_fd, 
                                 uint32_t max_timeout, 
                                 uint32_t* seq,
-                                uint32_t conn_id
+                                uint32_t conn_id,
+                                FlagsEnum H_F_flag
                             ) {
-    
-
-    // create first SYN packet
+    // create first packet SYN / FIN
     char message[MAX_PROTOCOL_SIZE];
     char* msg = message;
-    create_header(SYN, NULL, 0, &msg, conn_id, (*seq)++, 0);
+    create_header(H_F_flag, NULL, 0, &msg, conn_id, (*seq)++, 0);
 
     // start timeout
     struct timespec last_timeout;
@@ -60,11 +74,12 @@ ExitCode client_handle_handshake(int32_t socket_fd,
             return EXIT_SOCKET;
         }
 
-        if(check_malformed((unsigned char*)message, received, ACK | SYN, conn_id) != EXIT_SUCCESS) continue;
+        if(check_malformed((unsigned char*)message, received, conn_id) != EXIT_SUCCESS) continue;
 
         // check for correct ack num
-        int32_t message_ack_num = ((ProtocolHeaderPtr) message)->ack_num;
-        if(message_ack_num == *seq) break;
+        ProtocolHeaderPtr header = (ProtocolHeaderPtr) message;
+        if(header->flags != (ACK | H_F_flag)) continue;
+        if(header->ack_num == *seq) break;
     }
 
     // send ack back
@@ -121,11 +136,12 @@ ExitCode send_data(int32_t socket_fd,
                 return EXIT_SOCKET;
             }
 
-            if(check_malformed((unsigned char*)message, received, ACK, conn_id) != EXIT_SUCCESS) continue;
+            if(check_malformed((unsigned char*)message, received, conn_id) != EXIT_SUCCESS) continue;
 
             // check for correct ack num
-            int32_t message_ack_num = ((ProtocolHeaderPtr) message)->ack_num;
-            if(message_ack_num == *seq + 1) break;
+            ProtocolHeaderPtr header = (ProtocolHeaderPtr) message;
+            if(header->flags != ACK) continue;
+            if(header->ack_num == *seq + 1) break;
         }
         // correctly sent message
         (*seq)++;
