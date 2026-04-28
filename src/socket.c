@@ -34,4 +34,17 @@ ExitCode bind_socket(int32_t socket_fd, struct addrinfo* address) {
     return EXIT_SUCCESS;
 }
 
+ExitCode set_receive_timeout(int32_t socket_fd, int32_t ms) {
+    struct timeval timeout = {
+        .tv_sec = 0,
+        .tv_usec = ms * 1000,
+    };
+
+    if (setsockopt(socket_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) == -1) {
+        perror("Setsockopt");
+        return EXIT_SOCKET;
+    }
+
+    return EXIT_SUCCESS;
+}
 

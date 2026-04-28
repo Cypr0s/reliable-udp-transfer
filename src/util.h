@@ -12,7 +12,7 @@
 
 #define S_TO_MS 1000
 
-#define RESEND_TIMEOUT 256
+#define RESEND_TIMEOUT 128
 
 typedef enum {
     NONE = 0,

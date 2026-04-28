@@ -12,5 +12,7 @@ int32_t create_socket(struct addrinfo* address);
 
 ExitCode bind_socket(int32_t socket_fd, struct addrinfo* address);
 
+ExitCode set_receive_timeout(int32_t socket_fd, int32_t ms);
+
 
 #endif // SOCKET_H

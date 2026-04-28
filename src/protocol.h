@@ -4,7 +4,8 @@
 #include "error.h"  // exitcode
 
 #define HEADER_SIZE 24
-#define MAX_PROTOCOL_SIZE HEADER_SIZE + 1024
+#define MAX_PROTOCOL_SIZE HEADER_SIZE + MAX_DATA_SIZE
+#define MAX_DATA_SIZE 1024
 
 typedef enum {
     SYN = 1,

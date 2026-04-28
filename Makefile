@@ -8,10 +8,16 @@
 CC=gcc
 CFLAGS= -std=gnu17 -pedantic -Wall -Wextra
 FILE_LOC= src/
-LIBS=-pthread -lpcap
 
 OBJ= 	ipk-rdt.o			\
 		CLIparse.o			\
+		address.o			\
+		client.o			\
+		protocol.o			\
+		server.o			\
+		socket.o			\
+		util.o				\
+
 		
 OUT= ipk-rdt
 

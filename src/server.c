@@ -60,7 +60,7 @@ ExitCode server_handle_handshake(int32_t socket_fd,
     *conn_id = ((ProtocolHeaderPtr) buffer)->conn_id;
 
     // connect
-    if(connect(socket_fd, (struct sockaddr*) &client_addr, client_addr_size) == -1) {
+    if(connect(socket_fd, (struct sockaddr*) &client_addr, &client_addr_size) == -1) {
         perror("connect");
         return EXIT_SOCKET;
     }
@@ -124,11 +124,18 @@ ExitCode server_handle_handshake(int32_t socket_fd,
         if(check_malformed((unsigned char*)buffer, received, ACK, conn_id) != EXIT_SUCCESS) continue;
     
         ProtocolHeaderPtr header = (ProtocolHeaderPtr) buffer;
-        if(*expected_seq == header->seq_num && header->ack_num == server_seq + 1) break;
+        if(*expected_seq + 1 == header->seq_num && header->ack_num == server_seq + 1) break;
     }
     // sucessfull handshake
     (*expected_seq)++;
     return EXIT_SUCCESS;
 }
 
-
+ExitCode receive_data(int32_t socket_fd, 
+                        int32_t out_file,
+                        uint32_t max_timeout, 
+                        uint32_t* seq,
+                        uint32_t* conn_id
+                    ) {
+    //
+}
