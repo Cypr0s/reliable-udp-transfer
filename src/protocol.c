@@ -21,7 +21,7 @@ void create_header(uint8_t type,
     header->checksum = calculate_checksum((unsigned char*)header, HEADER_SIZE + data_size);
 }
 /**
- * taken from https://www.rfc-editor.org/rfc/rfc1071 and modified
+ * taken from https://datatracker.ietf.org/doc/html/rfc1071 and modified
  */
 uint16_t calculate_checksum(unsigned char* addr, uint32_t count) {
     register long sum = 0;
@@ -44,3 +44,43 @@ uint16_t calculate_checksum(unsigned char* addr, uint32_t count) {
 
     return (uint16_t) ~sum;
 }
+
+ExitCode validate_checksum(ProtocolHeaderPtr header, int32_t size) {
+    uint16_t received = header->checksum;
+    header->checksum = 0;
+
+    uint16_t calculated = calculate_checksum((unsigned char*) header, size);
+    header->checksum = received;
+    // malformed
+    if(calculated != received) {
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
+}
+
+ExitCode check_malformed(unsigned char* buffer, int32_t received, uint8_t expected_flags, uint32_t* expected_conn_id) {
+    // not long enough
+    if(received < HEADER_SIZE) {
+        return EXIT_CORRUPT;
+    }
+    
+    ProtocolHeaderPtr header = (ProtocolHeaderPtr) buffer;
+    // corrupt packet
+    if(validate_checksum(header, received) != EXIT_SUCCESS) {
+        return EXIT_CORRUPT;
+    }
+    
+    // check flags
+    if(header->flags != expected_flags) {
+        return EXIT_CORRUPT;
+    }
+    
+    // check connection id (skip if expected_conn_id is 0)
+    
+    if(expected_conn_id != NULL && header->conn_id != *expected_conn_id) {
+        return EXIT_CORRUPT;
+    }
+    
+    return EXIT_SUCCESS;
+}
+

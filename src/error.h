@@ -21,6 +21,7 @@ typedef enum ExitEnum {
     EXIT_OPEN = 6,
     EXIT_CLOCK = 7,
     EXIT_TIMEOUT = 8,
+    EXIT_CORRUPT = 9,
     EXIT_MALLOC = 99,
 } ExitCode;
 

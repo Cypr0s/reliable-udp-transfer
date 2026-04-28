@@ -11,21 +11,19 @@ int main(int argc, char** argv) {
     Args args = {0};
     ExitCode exit = EXIT_SUCCESS;
     // parse args
-    ExitCode parse_result = parse_arguments(argc, argv, &args);
-    if(parse_result == EXIT_HELP) {
+    ExitCode exit = parse_arguments(argc, argv, &args);
+    if(exit == EXIT_HELP) {
         return EXIT_SUCCESS;
     }
 
-    if(parse_result != EXIT_SUCCESS) {
-        return parse_result;
-    }
+    // other err
+    if(exit) return exit;
+    
 
     // resolve address / ip
     struct addrinfo* addresses;
     exit = resolve_address(args.address, &addresses, args.port, args.app_side);
-    if(exit != EXIT_SUCCESS) {
-        return exit;
-    }
+    if(exit) return exit;
 
     // create socket
     int32_t socket_fd = create_socket(addresses);
