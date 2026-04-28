@@ -28,7 +28,7 @@ ExitCode parse_arguments(int argc, char** argv, ArgsPtr args) {
 
     
     // loop through arguments
-    for(uint32_t i = 1; i < argc; i++) {
+    for(int32_t i = 1; i < argc; i++) {
         char* argument = argv[i];
 
         if(!strcmp(argument, "-help") || !strcmp(argument, "-h")) {
@@ -159,7 +159,7 @@ ExitCode parse_arguments(int argc, char** argv, ArgsPtr args) {
 /**
  * @brief checks if argument is already set and if theres an actual value after argument
  */
-ExitCode check_arg(void* arg, int32_t argc_count, uint32_t i, uint8_t arg_size, char* argument) {
+ExitCode check_arg(void* arg, int32_t argc_count, int32_t i, uint8_t arg_size, char* argument) {
     char zero_arr[arg_size];
     memset(zero_arr, 0, arg_size);
     // check if argument is already set

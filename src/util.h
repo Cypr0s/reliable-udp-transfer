@@ -21,11 +21,11 @@ typedef enum {
 } AppSideEnum;
 
 typedef enum {
-    SYN = 1,
-    ACK = 2,
-    FIN = 4,
-    RST = 8,
-    DATA = 16,
+    FLAG_SYN = 1,
+    FLAG_ACK = 2,
+    FLAG_FIN = 4,
+    FLAG_RST = 8,
+    FLAG_DATA = 16,
 } FlagsEnum;
 
 typedef struct {

@@ -11,6 +11,9 @@
 
 #include "CLI_parse.h"
 #include "address.h"
+#include "socket.h"
+#include "server.h"
+#include "client.h"
 
 
 #endif // IPK_RDT_H

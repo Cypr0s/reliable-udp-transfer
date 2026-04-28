@@ -11,7 +11,7 @@ int main(int argc, char** argv) {
     Args args = {0};
     ExitCode exit = EXIT_SUCCESS;
     // parse args
-    ExitCode exit = parse_arguments(argc, argv, &args);
+    exit = parse_arguments(argc, argv, &args);
     if(exit == EXIT_HELP) {
         return EXIT_SUCCESS;
     }

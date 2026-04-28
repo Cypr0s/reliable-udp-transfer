@@ -18,23 +18,23 @@ ExitCode run_as_client(int32_t socket_fd, struct addrinfo* address, ArgsPtr args
         return EXIT_SOCKET;
     }
 
-    uint32_t conn_id, start_seq;
+    uint32_t conn_id, seq;
     conn_id = (uint32_t) rand();
-    start_seq = (uint32_t) rand();
+    seq = (uint32_t) rand();
 
-    exit = handle_connection(socket_fd, args->timeout_sec, &start_seq, conn_id, SYN);
+    exit = handle_connection(socket_fd, args->timeout_sec, &seq, conn_id, FLAG_SYN);
     if(exit) {
         close(in_fd);
         return exit;
     }
 
-    exit = send_data(socket_fd, in_fd, args->timeout_sec, start_seq, conn_id);
+    exit = send_data(socket_fd, in_fd, args->timeout_sec, &seq, conn_id);
     if(exit) {
         close(in_fd); 
         return exit;
     }
 
-    exit = handle_connection(socket_fd, args->timeout_sec, &start_seq, conn_id, FIN);
+    exit = handle_connection(socket_fd, args->timeout_sec, &seq, conn_id, FLAG_FIN);
     close(in_fd);
     return exit;
 }
@@ -74,17 +74,17 @@ ExitCode handle_connection(int32_t socket_fd,
             return EXIT_SOCKET;
         }
 
-        if(check_malformed((unsigned char*)message, received, conn_id) != EXIT_SUCCESS) continue;
+        if(check_malformed((unsigned char*)message, received, &conn_id) != EXIT_SUCCESS) continue;
 
         // check for correct ack num
         ProtocolHeaderPtr header = (ProtocolHeaderPtr) message;
-        if(header->flags != (ACK | H_F_flag)) continue;
+        if(header->flags != (FLAG_ACK | H_F_flag)) continue;
         if(header->ack_num == *seq) break;
     }
 
     // send ack back
     ProtocolHeaderPtr header = (ProtocolHeaderPtr) message;
-    create_header(ACK, NULL, 0, &msg, conn_id, (*seq)++, header->seq_num + 1);
+    create_header(FLAG_ACK, NULL, 0, &msg, conn_id, (*seq)++, header->seq_num + 1);
     // send
     int32_t bytes = send(socket_fd, msg, HEADER_SIZE, 0);
     if(bytes <= 0) {
@@ -100,7 +100,7 @@ ExitCode send_data(int32_t socket_fd,
                         int32_t in_file,
                         uint32_t max_timeout, 
                         uint32_t* seq,
-                        uint32_t* conn_id
+                        uint32_t conn_id
                     ) {
     char data[MAX_DATA_SIZE];
     int32_t data_size;
@@ -118,7 +118,7 @@ ExitCode send_data(int32_t socket_fd,
         // send message with data
         char message[MAX_PROTOCOL_SIZE];
         char* msg = message;
-        create_header(DATA, data, data_size, &msg, conn_id, *seq, 0);
+        create_header(FLAG_DATA, data, data_size, &msg, conn_id, *seq, 0);
         // send msg, wait for response
         while(1) {
             int32_t bytes = send(socket_fd, msg, HEADER_SIZE + data_size, 0);
@@ -136,11 +136,11 @@ ExitCode send_data(int32_t socket_fd,
                 return EXIT_SOCKET;
             }
 
-            if(check_malformed((unsigned char*)message, received, conn_id) != EXIT_SUCCESS) continue;
+            if(check_malformed((unsigned char*)message, received, &conn_id) != EXIT_SUCCESS) continue;
 
             // check for correct ack num
             ProtocolHeaderPtr header = (ProtocolHeaderPtr) message;
-            if(header->flags != ACK) continue;
+            if(header->flags != FLAG_ACK) continue;
             if(header->ack_num == *seq + 1) break;
         }
         // correctly sent message

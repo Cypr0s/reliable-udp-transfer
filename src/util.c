@@ -4,9 +4,9 @@
 int32_t open_file(const char* path, AppSideEnum app_side) {
     if(path == NULL || !strcmp(path, "-")) {
         if(app_side == SERVER) {
-            return stdout; // stdout for server
+            return STDOUT_FILENO; // stdout for server
         }
-        return stdin; // stdin for client
+        return STDIN_FILENO; // stdin for client
     }
 
     // r or w per side

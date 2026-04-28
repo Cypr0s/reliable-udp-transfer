@@ -1,3 +1,5 @@
+#ifndef PROTOCOL_H
+#define PROTOCOL_H
 
 #include <stdint.h> // types
 #include <string.h> // memset
@@ -7,15 +9,7 @@
 #define MAX_PROTOCOL_SIZE HEADER_SIZE + MAX_DATA_SIZE
 #define MAX_DATA_SIZE 1024
 
-typedef enum {
-    SYN = 1,
-    ACK = 2,
-    FIN = 4,
-    RST = 8,
-    DATA = 16,
-} FlagsEnum;
-
-typedef struct header {
+typedef struct {
     uint32_t conn_id;
     uint32_t seq_num;
     uint32_t ack_num;
@@ -42,3 +36,5 @@ uint16_t calculate_checksum(unsigned char* addr, uint32_t count);
 ExitCode validate_checksum(ProtocolHeaderPtr header, int32_t size);
 
 ExitCode check_malformed(unsigned char* buffer, int32_t received, uint32_t* expected_conn_id);
+
+#endif //PROTOCOL_H

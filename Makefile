@@ -1,4 +1,4 @@
-/** ------------- IPK 2 - RDT ---------------
+# ------------- IPK 2 - RDT ---------------
 #	file:	Makefile
 # 	Author: Kristian Luptak <xluptak00>
 #	date: 	26.4.2026
@@ -9,14 +9,14 @@ CC=gcc
 CFLAGS= -std=gnu17 -pedantic -Wall -Wextra
 FILE_LOC= src/
 
-OBJ= 	ipk-rdt.o			\
-		CLIparse.o			\
+OBJ= 	ipk_rdt.o			\
+		CLI_parse.o			\
 		address.o			\
 		client.o			\
 		protocol.o			\
 		server.o			\
 		socket.o			\
-		util.o				\
+		util.o				
 
 		
 OUT= ipk-rdt
@@ -35,7 +35,7 @@ TEST_FILE=test.sh
 all: $(OUT)
 
 $(OUT): $(OBJ)
-	$(CC) $(CFLAGS) -o $(OUT) $(OBJ) $(LIBS)
+	$(CC) $(CFLAGS) -o $(OUT) $(OBJ)
 
 %.o: $(FILE_LOC)%.c
 	$(CC) $(CFLAGS) -o $@ -c $<

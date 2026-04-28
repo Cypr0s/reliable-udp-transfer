@@ -14,7 +14,7 @@ ExitCode run_as_server(int32_t socket_fd, struct addrinfo* address, ArgsPtr args
     exit = server_handle_handshake(socket_fd, args->timeout_sec, &expected_seq, &conn_id);
     if(exit) return exit;
     // data transfer
-    exit = receive_data(socket_fd, out_fd, args->timeout_sec, expected_seq, conn_id);
+    exit = receive_data(socket_fd, out_fd, args->timeout_sec, &expected_seq, conn_id);
     // teardown
 
     return EXIT_SUCCESS;
@@ -54,14 +54,14 @@ ExitCode server_handle_handshake(int32_t socket_fd,
         
         // check malformed packet
         if(check_malformed((unsigned char*)buffer, received, conn_id) != EXIT_SUCCESS) continue;
-        if(((ProtocolHeaderPtr) buffer)->flags != SYN) continue; 
+        if(((ProtocolHeaderPtr) buffer)->flags != FLAG_SYN) continue; 
         break;
     }
     // set conn id
     *conn_id = ((ProtocolHeaderPtr) buffer)->conn_id;
 
     // connect
-    if(connect(socket_fd, (struct sockaddr*) &client_addr, &client_addr_size) == -1) {
+    if(connect(socket_fd, (struct sockaddr*) &client_addr, client_addr_size) == -1) {
         perror("connect");
         return EXIT_SOCKET;
     }
@@ -72,7 +72,7 @@ ExitCode server_handle_handshake(int32_t socket_fd,
     char message_back[HEADER_SIZE];
     char* msg = message_back;
     uint32_t server_seq = rand();
-    create_header(SYN | ACK, NULL, 0, &msg, *conn_id, server_seq, ++(*expected_seq));
+    create_header(FLAG_SYN | FLAG_ACK, NULL, 0, &msg, *conn_id, server_seq, ++(*expected_seq));
     
     // send
     int32_t bytes = send(socket_fd, msg, HEADER_SIZE, 0);
@@ -125,7 +125,7 @@ ExitCode server_handle_handshake(int32_t socket_fd,
         if(check_malformed((unsigned char*)buffer, received, conn_id) != EXIT_SUCCESS) continue;
     
         ProtocolHeaderPtr header = (ProtocolHeaderPtr) buffer;
-        if(header->flags != ACK) continue; 
+        if(header->flags != FLAG_ACK) continue; 
         if(*expected_seq + 1 == header->seq_num && header->ack_num == server_seq + 1) break;
     }
     // sucessfull handshake
@@ -138,7 +138,7 @@ ExitCode receive_data(int32_t socket_fd,
                         int32_t out_file,
                         uint32_t max_timeout, 
                         uint32_t* seq,
-                        uint32_t* conn_id
+                        uint32_t conn_id
                     ) {
     // buffer for receiving messages
     char received_message[MAX_PROTOCOL_SIZE];
@@ -165,11 +165,11 @@ ExitCode receive_data(int32_t socket_fd,
         }
 
         // validate packet
-        if(check_malformed((unsigned char*)received_message, received, conn_id) != EXIT_SUCCESS) continue;
+        if(check_malformed((unsigned char*)received_message, received, &conn_id) != EXIT_SUCCESS) continue;
 
         ProtocolHeaderPtr header = (ProtocolHeaderPtr) received_message;
         // check for data flag
-        if(header->flags == DATA) {
+        if(header->flags == FLAG_DATA) {
             // check sequence number
             if(header->seq_num != *seq) continue;
 
@@ -182,7 +182,7 @@ ExitCode receive_data(int32_t socket_fd,
             // send ACK back
             char ack_msg[HEADER_SIZE];
             char* msg = ack_msg;
-            create_header(ACK, NULL, 0, &msg, *conn_id, *seq, header->seq_num + 1);
+            create_header(FLAG_ACK, NULL, 0, &msg, conn_id, *seq, header->seq_num + 1);
             
             int32_t bytes = send(socket_fd, msg, HEADER_SIZE, 0);
             if(bytes <= 0) {
@@ -196,7 +196,7 @@ ExitCode receive_data(int32_t socket_fd,
                 return EXIT_CLOCK;
             }
         }
-        else if(header->flags == FIN) {
+        else if(header->flags == FLAG_FIN) {
             break;
         }
         else {
