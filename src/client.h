@@ -9,18 +9,18 @@
 #include "protocol.h"   // header,  ...
 #include "util.h"   // flagsenum
 
-#define ITEM_ACK 1
-#define ITEM_FULL 2
+#define ITEM_ACK 2
+#define ITEM_FULL 1
 
 typedef struct {
-    unsigned char header[MAX_PROTOCOL_SIZE];
-    uint16_t header_size;
+    unsigned char data[MAX_PROTOCOL_SIZE];
+    uint16_t data_size;
     unsigned char flags; // ack and empty
     struct timespec sent_time;
-} Item, *ItemPtr;
+} ClientItem;
 
 typedef struct {
-    Item items[WINDOW_SIZE];
+    ClientItem items[WINDOW_SIZE];
     uint16_t filled_slots;
 } Window;
 

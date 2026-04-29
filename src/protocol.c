@@ -2,15 +2,15 @@
 
 
 void create_header(uint8_t type, 
-                   char* data, 
+                   unsigned char* data, 
                    uint16_t data_size, 
-                   char** buffer, 
+                   unsigned char* buffer, 
                    uint32_t conn_id, 
                    uint32_t seq_num, 
                    uint32_t ack_num
             ) {
-    memset(*buffer, 0, HEADER_SIZE + data_size);
-    ProtocolHeaderPtr header = (ProtocolHeaderPtr) *buffer;
+    memset(buffer, 0, HEADER_SIZE + data_size);
+    ProtocolHeaderPtr header = (ProtocolHeaderPtr) buffer;
     header->conn_id = conn_id;
     header->seq_num = seq_num;
     header->ack_num = ack_num;

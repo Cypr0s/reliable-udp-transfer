@@ -58,7 +58,7 @@ ExitCode handle_connection(int32_t socket_fd,
                             ) {
     // create first packet SYN / FIN
 
-    char message[MAX_PROTOCOL_SIZE];
+    unsigned char message[MAX_PROTOCOL_SIZE];
     
     create_header(H_F_flag, NULL, 0, message, conn_id, (*seq)++, 0);
 
@@ -107,6 +107,7 @@ ExitCode handle_connection(int32_t socket_fd,
         return EXIT_SOCKET;
     }
     (*seq)++;
+    fprintf(stdout, "Successful Handshake\n");
     return EXIT_SUCCESS;
 }
 
@@ -119,15 +120,15 @@ ExitCode send_data(int32_t socket_fd,
                     ) {
     // create window
     Window window = {0};
-    uint8_t window_start = 0;
+    uint8_t window_start = *seq;
     ExitCode exit = EXIT_SUCCESS;
 
     // for data reading
-    char data[MAX_DATA_SIZE];
+    unsigned char data[MAX_DATA_SIZE];
     int32_t data_size;
 
     // message sending
-    char message[MAX_PROTOCOL_SIZE];
+    unsigned char message[MAX_PROTOCOL_SIZE];
     unsigned char eof = 0;
 
     // global timeout
@@ -153,6 +154,7 @@ ExitCode send_data(int32_t socket_fd,
             // create header
             create_header(FLAG_DATA, data, data_size, message, conn_id, *seq, 0);
             int32_t bytes = send(socket_fd, message, HEADER_SIZE + data_size, 0);
+            fprintf(stdout, "Sent packet\n");
             if(bytes <= 0) {
                 perror("sendto");
                 return EXIT_SOCKET;
@@ -163,9 +165,9 @@ ExitCode send_data(int32_t socket_fd,
                 perror("clock_gettime");
                 return EXIT_CLOCK;
             }
-            memcpy(window.items[index].header, message, bytes);
+            memcpy(window.items[index].data, message, bytes);
             window.items[index].flags |= ITEM_FULL;
-            window.items[index].header_size = bytes;
+            window.items[index].data_size = bytes;
             window.filled_slots++;
             (*seq)++;
         }
@@ -177,7 +179,7 @@ ExitCode send_data(int32_t socket_fd,
                 if(errno == EAGAIN || errno == EWOULDBLOCK) break;
                 return EXIT_SOCKET;
             }
-
+            fprintf(stdout, "Got packet\n");
             if(check_malformed((unsigned char*)message, received) != EXIT_SUCCESS) continue;
 
             ProtocolHeaderPtr header = (ProtocolHeaderPtr) message;
@@ -188,7 +190,7 @@ ExitCode send_data(int32_t socket_fd,
                 if(!(window.items[i].flags & ITEM_FULL)) {
                     continue;
                 }
-                if(((ProtocolHeaderPtr)window.items[i].header)->seq_num + 1 == header->ack_num) {
+                if(((ProtocolHeaderPtr)window.items[i].data)->seq_num + 1 == header->ack_num) {
                     // set acked
                     window.items[i].flags |= ITEM_ACK;
                     // reset timeout
@@ -207,7 +209,7 @@ ExitCode send_data(int32_t socket_fd,
             }
             if(resolve_timeout(window.items[i].sent_time, RESEND_TIMEOUT) && !(window.items[i].flags & ITEM_ACK)) {
                 // resend
-                int32_t bytes = send(socket_fd, window.items[i].header, window.items[i].header_size, 0);
+                int32_t bytes = send(socket_fd, window.items[i].data, window.items[i].data_size, 0);
                 if(bytes <= 0) {
                     perror("sendto");
                     return EXIT_SOCKET;
@@ -231,17 +233,19 @@ ExitCode send_data(int32_t socket_fd,
         for(uint32_t i = 0; i < WINDOW_SIZE; i++) {
             uint32_t index = (i + window_start) % WINDOW_SIZE;
             // check if acked
+            fprintf(stdout, "%d\n", window.filled_slots);
             if(!(window.items[index].flags & ITEM_ACK)) {
                 break;
             }
             
             // reset item
             window.items[index].flags = 0;
-
+            fprintf(stdout, "%d\n", window.filled_slots);
             // slide window
             window.filled_slots--;
             window_start =(window_start + 1) % WINDOW_SIZE;
         }
     }
+    fprintf(stdout, "Valid transfer\n");
     return EXIT_SUCCESS;
 }

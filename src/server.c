@@ -44,7 +44,7 @@ ExitCode server_handshake(int32_t socket_fd,
                           uint32_t* conn_id
                         ) {
     // buffer for holding incoming packets
-    char buffer[MAX_PROTOCOL_SIZE];
+    unsigned char buffer[MAX_PROTOCOL_SIZE];
 
     // sender addr
     struct sockaddr_storage client_addr;
@@ -89,7 +89,7 @@ ExitCode server_handshake(int32_t socket_fd,
     *expected_seq = ((ProtocolHeaderPtr) buffer)->seq_num;
 
     // create SYN + ACK and send back
-    char message_back[HEADER_SIZE];
+    unsigned char message_back[HEADER_SIZE];
     uint32_t server_seq = rand();
     create_header(FLAG_SYN | FLAG_ACK, NULL, 0, message_back, *conn_id, server_seq, ++(*expected_seq));
     
@@ -155,6 +155,7 @@ ExitCode server_handshake(int32_t socket_fd,
     }
     // sucessfull handshake
     (*expected_seq)++;
+    fprintf(stdout, "Successful Handshake\n");
     return EXIT_SUCCESS;
 }
 
@@ -165,9 +166,14 @@ ExitCode receive_data(int32_t socket_fd,
                         uint32_t* seq,
                         uint32_t conn_id
                     ) {
+    // window/ buffer for holding messages
+    ServerItem window[WINDOW_SIZE];
+    // start seq
+    uint32_t expected_seq = *seq;
+
     // buffer for receiving messages
-    char received_message[MAX_PROTOCOL_SIZE];
     ExitCode exit = EXIT_SUCCESS;
+    unsigned char received_message[MAX_PROTOCOL_SIZE];
 
     // start timeout
     struct timespec last_timeout;
@@ -185,47 +191,64 @@ ExitCode receive_data(int32_t socket_fd,
             return exit;
         }
 
-        // receive DATA packet
+        // receive message
         int32_t received = recv(socket_fd, received_message, MAX_PROTOCOL_SIZE, MSG_DONTWAIT);
         if(received <= 0) {
             if(errno == EAGAIN || errno == EWOULDBLOCK) continue;
             return EXIT_SOCKET;
         }
-        
-
+        fprintf(stdout, "Got packet\n");
         // validate packet
         if(check_malformed((unsigned char*)received_message, received) != EXIT_SUCCESS) continue;
 
         ProtocolHeaderPtr header = (ProtocolHeaderPtr) received_message;
         // check connection id
         if(header->conn_id != conn_id) continue;
-        // check sequence number
-        if(header->seq_num != *seq) continue;
         // check for data flag
         if(header->flags == FLAG_DATA) {
-            // write data to file
-            if(write(out_file, header->data, header->payload_size) == -1) {
-                perror("write");
-                return EXIT_WRITE;
+            // doesnt fit into window
+            if(header->seq_num >= expected_seq + WINDOW_SIZE) continue;
+
+            // new hdr, store into window, reset timer
+            if(!(window[header->seq_num % WINDOW_SIZE].flags & ITEM_FULL)) {
+                memcpy(window[header->seq_num % WINDOW_SIZE].data, received_message, received);
+                window[header->seq_num % WINDOW_SIZE].data_size = received;
+                window[header->seq_num % WINDOW_SIZE].flags = ITEM_FULL;
+
+                // reset timeout on progress
+                if(clock_gettime(CLOCK_MONOTONIC, &last_timeout) != 0) {
+                    perror("clock_gettime");
+                    return EXIT_CLOCK;
+                }
             }
 
             // send ACK back
-            char ack_msg[HEADER_SIZE];
-            create_header(FLAG_ACK, NULL, 0, ack_msg, conn_id, *seq, header->seq_num + 1);
-            
+            unsigned char ack_msg[HEADER_SIZE];
+            create_header(FLAG_ACK, NULL, 0, ack_msg, conn_id, 0, header->seq_num + 1);
+            fprintf(stdout, "Sent packet\n");
             int32_t bytes = send(socket_fd, ack_msg, HEADER_SIZE, 0);
             if(bytes <= 0) {
                 perror("send");
                 return EXIT_SOCKET;
             }
 
-            // reset timeout on progress
-            if(clock_gettime(CLOCK_MONOTONIC, &last_timeout) != 0) {
-                perror("clock_gettime");
-                return EXIT_CLOCK;
+            // write values, move window
+            while(window[expected_seq % WINDOW_SIZE].flags & ITEM_FULL) {
+                ProtocolHeaderPtr hdr = (ProtocolHeaderPtr) (window[expected_seq % WINDOW_SIZE].data);
+                // write, reset
+                if(write(out_file, hdr->data, hdr->payload_size) == -1) {
+                    perror("write");
+                    return EXIT_WRITE;
+                }
+                window[expected_seq % WINDOW_SIZE].flags = 0;
+                expected_seq++;
+
+                // reset timeout on progress
+                if(clock_gettime(CLOCK_MONOTONIC, &last_timeout) != 0) {
+                    perror("clock_gettime");
+                    return EXIT_CLOCK;
+                }
             }
-            // next expected seq
-            (*seq)++;
         }
         else if(header->flags == FLAG_FIN) {
             break;
@@ -233,10 +256,13 @@ ExitCode receive_data(int32_t socket_fd,
         else {
             continue;
         }
+
     }
-    
+    fprintf(stdout, "Valid transfer\n");
+    *seq = expected_seq;
     return EXIT_SUCCESS;
 }
+
 
 ExitCode server_teardown(int32_t socket_fd, 
                          uint32_t max_timeout, 
@@ -244,7 +270,7 @@ ExitCode server_teardown(int32_t socket_fd,
                          uint32_t conn_id
                         ) {
     // send FIN+ACK
-    char message[MAX_PROTOCOL_SIZE];
+    unsigned char message[MAX_PROTOCOL_SIZE];
     uint32_t server_seq = rand();
     create_header(FLAG_FIN | FLAG_ACK, NULL, 0, message, conn_id, server_seq, ++seq);
     

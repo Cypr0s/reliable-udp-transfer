@@ -20,15 +20,15 @@ typedef struct {
     uint8_t  flags;
     uint16_t padding;
     uint8_t  padding2;
-    char data[];
+    unsigned char data[];
 } ProtocolHeader, *ProtocolHeaderPtr;
 #pragma pack(pop)
 
 
 void create_header(uint8_t type, 
-                   char* data, 
+                   unsigned char* data, 
                    uint16_t data_size, 
-                   char** buffer, 
+                   unsigned char* buffer, 
                    uint32_t conn_id, 
                    uint32_t seq_num, 
                    uint32_t ack_num
