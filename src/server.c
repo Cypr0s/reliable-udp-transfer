@@ -90,12 +90,11 @@ ExitCode server_handshake(int32_t socket_fd,
 
     // create SYN + ACK and send back
     char message_back[HEADER_SIZE];
-    char* msg = message_back;
     uint32_t server_seq = rand();
-    create_header(FLAG_SYN | FLAG_ACK, NULL, 0, &msg, *conn_id, server_seq, ++(*expected_seq));
+    create_header(FLAG_SYN | FLAG_ACK, NULL, 0, message_back, *conn_id, server_seq, ++(*expected_seq));
     
     // send
-    int32_t bytes = send(socket_fd, msg, HEADER_SIZE, 0);
+    int32_t bytes = send(socket_fd, message_back, HEADER_SIZE, 0);
     if(bytes <= 0) {
         perror("sendto");
         return EXIT_SOCKET;
@@ -127,7 +126,7 @@ ExitCode server_handshake(int32_t socket_fd,
         exit = resolve_timeout(resend_timeout, RESEND_TIMEOUT);
         if(exit) {
             // resend
-            int32_t bytes = send(socket_fd, msg, HEADER_SIZE, 0);
+            int32_t bytes = send(socket_fd, message_back, HEADER_SIZE, 0);
             if(bytes <= 0) {
                 perror("sendto");
                 return EXIT_SOCKET;
@@ -183,11 +182,11 @@ ExitCode receive_data(int32_t socket_fd,
         exit = resolve_timeout(last_timeout, max_timeout * S_TO_MS);
         if(exit) {
             fprintf(stderr, "Maximum timeout time has passed\n");
-            if(exit) return exit;
+            return exit;
         }
 
         // receive DATA packet
-        int32_t received = recv(socket_fd, received_message, MAX_PROTOCOL_SIZE, 0);
+        int32_t received = recv(socket_fd, received_message, MAX_PROTOCOL_SIZE, MSG_DONTWAIT);
         if(received <= 0) {
             if(errno == EAGAIN || errno == EWOULDBLOCK) continue;
             return EXIT_SOCKET;
@@ -210,14 +209,11 @@ ExitCode receive_data(int32_t socket_fd,
                 return EXIT_WRITE;
             }
 
-
-
             // send ACK back
             char ack_msg[HEADER_SIZE];
-            char* msg = ack_msg;
-            create_header(FLAG_ACK, NULL, 0, &msg, conn_id, *seq, header->seq_num + 1);
+            create_header(FLAG_ACK, NULL, 0, ack_msg, conn_id, *seq, header->seq_num + 1);
             
-            int32_t bytes = send(socket_fd, msg, HEADER_SIZE, 0);
+            int32_t bytes = send(socket_fd, ack_msg, HEADER_SIZE, 0);
             if(bytes <= 0) {
                 perror("send");
                 return EXIT_SOCKET;
@@ -249,12 +245,11 @@ ExitCode server_teardown(int32_t socket_fd,
                         ) {
     // send FIN+ACK
     char message[MAX_PROTOCOL_SIZE];
-    char *msg = message;
     uint32_t server_seq = rand();
-    create_header(FLAG_FIN | FLAG_ACK, NULL, 0, &msg, conn_id, server_seq, ++seq);
+    create_header(FLAG_FIN | FLAG_ACK, NULL, 0, message, conn_id, server_seq, ++seq);
     
     // send
-    int32_t bytes = send(socket_fd, msg, HEADER_SIZE, 0);
+    int32_t bytes = send(socket_fd, message, HEADER_SIZE, 0);
     if(bytes <= 0) {
         perror("sendto");
         return EXIT_SOCKET;
@@ -282,13 +277,12 @@ ExitCode server_teardown(int32_t socket_fd,
             fprintf(stderr, "Maximum timeout time has passed\n");
             if(exit) return exit;
         }
-        if(exit) return exit;
 
         // resend if no response
         exit = resolve_timeout(resend_timeout, RESEND_TIMEOUT);
         if(exit) {
             // resend
-            int32_t bytes = send(socket_fd, msg, HEADER_SIZE, 0);
+            int32_t bytes = send(socket_fd, message, HEADER_SIZE, 0);
             if(bytes <= 0) {
                 perror("sendto");
                 return EXIT_SOCKET;

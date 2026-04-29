@@ -14,6 +14,8 @@
 
 #define RESEND_TIMEOUT 128
 
+#define WINDOW_SIZE 64
+
 typedef enum {
     NONE = 0,
     SERVER = 1,
