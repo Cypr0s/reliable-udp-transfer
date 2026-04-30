@@ -19,9 +19,9 @@
 
 #define S_TO_MS 1000
 
-#define RESEND_TIMEOUT 500 // miliseconds
+#define RESEND_TIMEOUT 50 // miliseconds
 
-#define WINDOW_SIZE 128  // 128 fast but fails on timeout, 64 also fails sometimes on low timeouts
+#define WINDOW_SIZE 128 
 
 typedef enum {
     NONE = 0,

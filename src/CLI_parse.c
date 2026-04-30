@@ -9,7 +9,10 @@
 
 #define BASE 10
 
-const char* help_message;
+const char* help_message = "Server\n"
+                           "./ipk-rdt -s -p PORT [-a ADDRESS] [-o OUTPUT] [-w TIMEOUT] [-h | --help]\n"
+                           "Client\n"
+                           "./ipk-rdt -c -a HOST -p PORT [-i INPUT] [-w TIMEOUT] [-h | --help]\n";
 
 /**
  * @brief       parses arguments into ArgsPtr struct, checks for CLI errors
@@ -31,7 +34,7 @@ ExitCode parse_arguments(int argc, char** argv, ArgsPtr args) {
     for(int32_t i = 1; i < argc; i++) {
         char* argument = argv[i];
 
-        if(!strcmp(argument, "-help") || !strcmp(argument, "-h")) {
+        if(!strcmp(argument, "--help") || !strcmp(argument, "-h")) {
             // help argument, it has highest priority(if provided, all other arguments are ignored)
             fprintf(stdout, "%s", help_message);
             return EXIT_HELP;

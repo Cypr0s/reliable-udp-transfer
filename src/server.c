@@ -114,6 +114,7 @@ ExitCode server_handshake(int32_t socket_fd,
 
         // check whether message is invalid
         if(check_malformed((unsigned char*)buffer, received) != EXIT_SUCCESS) continue;
+        if(((ProtocolHeaderPtr) buffer)->flags == FLAG_RST) return EXIT_SIGNAL;
         if(((ProtocolHeaderPtr) buffer)->flags != FLAG_SYN) continue;
 
         // valid SYN message break from loop
@@ -159,6 +160,16 @@ ExitCode server_handshake(int32_t socket_fd,
 
     // wait for empty ack, or retransmit on retransmit timeout
     while(1) {
+        // SIGINT/SIGTERM
+        if(status) {
+            create_header(FLAG_RST, NULL, 0, message_back, *conn_id, 0, 0);
+            int32_t bytes = send(socket_fd, message_back, HEADER_SIZE, 0);
+            if(bytes <= 0) {
+                perror("sendto");
+                return EXIT_SOCKET;
+            }
+            return EXIT_SIGNAL;
+        }
         // global timeout check
         exit = resolve_timeout(last_timeout, max_timeout * S_TO_MS);
         if(exit){
@@ -196,6 +207,7 @@ ExitCode server_handshake(int32_t socket_fd,
         ProtocolHeaderPtr header = (ProtocolHeaderPtr) buffer;
         // check connection id
         if(header->conn_id != *conn_id) continue;
+        if(header->flags == FLAG_RST) return EXIT_SIGNAL;
 
         // ACK message is from handshake, DATA message could come if handshake ACK got lost
         if(header->flags != FLAG_ACK && header->flags != FLAG_DATA) continue; 
@@ -241,6 +253,16 @@ ExitCode receive_data(int32_t socket_fd,
 
     // infinite loop 
     while(1) {
+        // SIGINT/SIGTERM
+        if(status) {
+            create_header(FLAG_RST, NULL, 0, received_message, conn_id, 0, 0);
+            int32_t bytes = send(socket_fd, received_message, HEADER_SIZE, 0);
+            if(bytes <= 0) {
+                perror("sendto");
+                return EXIT_SOCKET;
+            }
+            return EXIT_SIGNAL;
+        }
         // check timeout
         exit = resolve_timeout(last_timeout, max_timeout * S_TO_MS);
         if(exit) {
@@ -367,6 +389,16 @@ ExitCode server_teardown(int32_t socket_fd,
     // wait until empty ack
     ExitCode exit = EXIT_SUCCESS;
     while(1) {
+        // SIGINT/SIGTERM
+        if(status) {
+            create_header(FLAG_RST, NULL, 0, message, conn_id, 0, 0);
+            int32_t bytes = send(socket_fd, message, HEADER_SIZE, 0);
+            if(bytes <= 0) {
+                perror("sendto");
+                return EXIT_SOCKET;
+            }
+            return EXIT_SIGNAL;
+        }
         exit = resolve_timeout(last_timeout, max_timeout * S_TO_MS);
         if(exit) {
             // maximum time passes but client finished sucessfully, (packet loss)
@@ -400,6 +432,7 @@ ExitCode server_teardown(int32_t socket_fd,
     
         ProtocolHeaderPtr header = (ProtocolHeaderPtr) message;
         if(header->conn_id != conn_id) continue;
+        if(header->flags == FLAG_RST) return EXIT_SIGNAL;
         if(header->flags == FLAG_ACK && header->ack_num == server_seq + 1) break;
     }
     // sucessfull teardown

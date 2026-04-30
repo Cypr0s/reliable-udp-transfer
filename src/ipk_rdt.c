@@ -66,5 +66,6 @@ int main(int argc, char** argv) {
 
     freeaddrinfo(addresses);
     close(socket_fd);
+    if(exit == EXIT_SIGNAL) return EXIT_SUCCESS;
     return exit;
 }

@@ -1,4 +1,10 @@
-#Designed header built on TOP of udp
+# IPK project 2 - Reliable File Transfer over UDP
+
+This document contains information about 
+
+##
+
+Designed header built on TOP of udp
 32 bits seq, ack, checksum
 8 for flags - decided to use SYN, ACK, DATA, RST, FIN
 16 for payload length and checksum

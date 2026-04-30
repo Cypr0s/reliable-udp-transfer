@@ -96,6 +96,16 @@ ExitCode handle_connection(int32_t socket_fd,
 
     ExitCode exit = EXIT_SUCCESS;
     while(1) {
+        // SIGINT/SIGTERM
+        if(status) {
+            create_header(FLAG_RST, NULL, 0, message, conn_id, 0, 0);
+            int32_t bytes = send(socket_fd, message, HEADER_SIZE, 0);
+            if(bytes <= 0) {
+                perror("sendto");
+                return EXIT_SOCKET;
+            }
+            return EXIT_SIGNAL;
+        }
         // send packet
         int32_t bytes = send(socket_fd, message, HEADER_SIZE, 0);
         if(bytes <= 0) {
@@ -121,7 +131,7 @@ ExitCode handle_connection(int32_t socket_fd,
         // check for valid message
         ProtocolHeaderPtr header = (ProtocolHeaderPtr) message;
         if(header->conn_id != conn_id) continue;
-
+        if(header->flags == FLAG_RST) return EXIT_SIGNAL;
         if(header->flags != (FLAG_ACK | H_F_flag)) continue;
         if(header->ack_num == *seq) break; // valid message
     }
@@ -172,6 +182,16 @@ ExitCode send_data(int32_t socket_fd,
 
     // infinite loop
     while(!eof || window.filled_slots > 0) {
+        // SIGINT/SIGTERM
+        if(status) {
+            create_header(FLAG_RST, NULL, 0, message, conn_id, 0, 0);
+            int32_t bytes = send(socket_fd, message, HEADER_SIZE, 0);
+            if(bytes <= 0) {
+                perror("sendto");
+                return EXIT_SOCKET;
+            }
+            return EXIT_SIGNAL;
+        }
         // send messages part
         // read until eof and windoow is not empty
         while(!eof && window.filled_slots < WINDOW_SIZE) {
@@ -217,8 +237,9 @@ ExitCode send_data(int32_t socket_fd,
 
             ProtocolHeaderPtr header = (ProtocolHeaderPtr) message;
             // check for correct packet
-            if(header->conn_id != conn_id || header->flags != FLAG_ACK) continue;
-
+            if(header->conn_id != conn_id) continue;
+            if(header->flags == FLAG_RST) return EXIT_SIGNAL;
+            if(header->flags != FLAG_ACK) continue;
             // reset timeout, valid ack packet
             if(clock_gettime(CLOCK_MONOTONIC, &last_timeout) != 0) {
                 perror("clock_gettime");
