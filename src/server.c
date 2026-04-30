@@ -149,13 +149,15 @@ ExitCode server_handshake(int32_t socket_fd,
         // check connection id
         if(header->conn_id != *conn_id) continue;
     
-        if(header->flags != FLAG_ACK) continue; 
+        if(header->flags != FLAG_ACK && header->flags != FLAG_DATA) continue; 
 
+        // ack
         if(header->ack_num == server_seq + 1) break;
+        // data, client moved on
+        if(header->seq_num == *expected_seq + 1) break;
     }
     // sucessfull handshake
     (*expected_seq)++;
-    fprintf(stdout, "Successful Handshake\n");
     return EXIT_SUCCESS;
 }
 
@@ -197,7 +199,6 @@ ExitCode receive_data(int32_t socket_fd,
             if(errno == EAGAIN || errno == EWOULDBLOCK) continue;
             return EXIT_SOCKET;
         }
-        fprintf(stdout, "Got packet\n");
         // validate packet
         if(check_malformed((unsigned char*)received_message, received) != EXIT_SUCCESS) continue;
 
@@ -208,29 +209,30 @@ ExitCode receive_data(int32_t socket_fd,
         if(header->flags == FLAG_DATA) {
             // doesnt fit into window
             if(header->seq_num >= expected_seq + WINDOW_SIZE) continue;
+            // reset timeout valid seq packet
+            if(clock_gettime(CLOCK_MONOTONIC, &last_timeout) != 0) {
+                perror("clock_gettime");
+                return EXIT_CLOCK;
+            }
+            // send ACK back
+            unsigned char ack_msg[HEADER_SIZE];
+            create_header(FLAG_ACK, NULL, 0, ack_msg, conn_id, 0, header->seq_num + 1);
+            int32_t bytes = send(socket_fd, ack_msg, HEADER_SIZE, 0);
+            if(bytes <= 0) {
+                perror("send");
+                return EXIT_SOCKET;
+            }
+
+            // old packet
+            if(header->seq_num < expected_seq) continue;
 
             // new hdr, store into window, reset timer
             if(!(window[header->seq_num % WINDOW_SIZE].flags & ITEM_FULL)) {
                 memcpy(window[header->seq_num % WINDOW_SIZE].data, received_message, received);
                 window[header->seq_num % WINDOW_SIZE].data_size = received;
                 window[header->seq_num % WINDOW_SIZE].flags = ITEM_FULL;
-
-                // reset timeout on progress
-                if(clock_gettime(CLOCK_MONOTONIC, &last_timeout) != 0) {
-                    perror("clock_gettime");
-                    return EXIT_CLOCK;
-                }
             }
 
-            // send ACK back
-            unsigned char ack_msg[HEADER_SIZE];
-            create_header(FLAG_ACK, NULL, 0, ack_msg, conn_id, 0, header->seq_num + 1);
-            fprintf(stdout, "Sent packet\n");
-            int32_t bytes = send(socket_fd, ack_msg, HEADER_SIZE, 0);
-            if(bytes <= 0) {
-                perror("send");
-                return EXIT_SOCKET;
-            }
 
             // write values, move window
             while(window[expected_seq % WINDOW_SIZE].flags & ITEM_FULL) {
@@ -258,7 +260,6 @@ ExitCode receive_data(int32_t socket_fd,
         }
 
     }
-    fprintf(stdout, "Valid transfer\n");
     *seq = expected_seq;
     return EXIT_SUCCESS;
 }
@@ -300,8 +301,8 @@ ExitCode server_teardown(int32_t socket_fd,
     while(1) {
         exit = resolve_timeout(last_timeout, max_timeout * S_TO_MS);
         if(exit) {
-            fprintf(stderr, "Maximum timeout time has passed\n");
-            if(exit) return exit;
+            // maximum time passes but client finished sucessfully, (packet loss)
+            return EXIT_SUCCESS;
         }
 
         // resend if no response

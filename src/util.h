@@ -12,9 +12,9 @@
 
 #define S_TO_MS 1000
 
-#define RESEND_TIMEOUT 128
+#define RESEND_TIMEOUT 256
 
-#define WINDOW_SIZE 64
+#define WINDOW_SIZE 128
 
 typedef enum {
     NONE = 0,

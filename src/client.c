@@ -107,7 +107,6 @@ ExitCode handle_connection(int32_t socket_fd,
         return EXIT_SOCKET;
     }
     (*seq)++;
-    fprintf(stdout, "Successful Handshake\n");
     return EXIT_SUCCESS;
 }
 
@@ -120,7 +119,7 @@ ExitCode send_data(int32_t socket_fd,
                     ) {
     // create window
     Window window = {0};
-    uint8_t window_start = *seq;
+    uint32_t window_start = *seq % WINDOW_SIZE;
     ExitCode exit = EXIT_SUCCESS;
 
     // for data reading
@@ -154,7 +153,6 @@ ExitCode send_data(int32_t socket_fd,
             // create header
             create_header(FLAG_DATA, data, data_size, message, conn_id, *seq, 0);
             int32_t bytes = send(socket_fd, message, HEADER_SIZE + data_size, 0);
-            fprintf(stdout, "Sent packet\n");
             if(bytes <= 0) {
                 perror("sendto");
                 return EXIT_SOCKET;
@@ -179,12 +177,16 @@ ExitCode send_data(int32_t socket_fd,
                 if(errno == EAGAIN || errno == EWOULDBLOCK) break;
                 return EXIT_SOCKET;
             }
-            fprintf(stdout, "Got packet\n");
             if(check_malformed((unsigned char*)message, received) != EXIT_SUCCESS) continue;
 
             ProtocolHeaderPtr header = (ProtocolHeaderPtr) message;
             // check for correct packet
             if(header->conn_id != conn_id || header->flags != FLAG_ACK) continue;
+            // reset timeout valid ack packet
+            if(clock_gettime(CLOCK_MONOTONIC, &last_timeout) != 0) {
+                perror("clock_gettime");
+                return EXIT_CLOCK;
+            }
             // check whether its in window
             for(uint16_t i = 0; i < WINDOW_SIZE; i++) {
                 if(!(window.items[i].flags & ITEM_FULL)) {
@@ -193,11 +195,6 @@ ExitCode send_data(int32_t socket_fd,
                 if(((ProtocolHeaderPtr)window.items[i].data)->seq_num + 1 == header->ack_num) {
                     // set acked
                     window.items[i].flags |= ITEM_ACK;
-                    // reset timeout
-                    if(clock_gettime(CLOCK_MONOTONIC, &last_timeout) != 0) {
-                        perror("clock_gettime");
-                        return EXIT_CLOCK;
-                    }
                 }
             }
         }
@@ -230,22 +227,18 @@ ExitCode send_data(int32_t socket_fd,
         }
         
         // move window
-        for(uint32_t i = 0; i < WINDOW_SIZE; i++) {
-            uint32_t index = (i + window_start) % WINDOW_SIZE;
+        while(window.filled_slots > 0) {
             // check if acked
-            fprintf(stdout, "%d\n", window.filled_slots);
-            if(!(window.items[index].flags & ITEM_ACK)) {
+            if(!(window.items[window_start].flags & ITEM_ACK)) {
                 break;
             }
             
             // reset item
-            window.items[index].flags = 0;
-            fprintf(stdout, "%d\n", window.filled_slots);
+            window.items[window_start].flags = 0;
             // slide window
             window.filled_slots--;
             window_start =(window_start + 1) % WINDOW_SIZE;
         }
     }
-    fprintf(stdout, "Valid transfer\n");
     return EXIT_SUCCESS;
 }
