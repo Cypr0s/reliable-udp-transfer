@@ -24,6 +24,7 @@ typedef enum ExitEnum {
     EXIT_CORRUPT = 9,
     EXIT_READ = 10,
     EXIT_WRITE = 11,
+    EXIT_SIGNAL = 12,
     EXIT_MALLOC = 99,
 } ExitCode;
 

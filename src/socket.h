@@ -1,3 +1,11 @@
+/** ------------- IPK 2 - RDT ---------------
+ * @headerfile  socket.h
+ * @author      Kristian Luptak (xluptak00)
+ * @date        28.4.2026
+ * @brief       Contains socket handling functions declarations
+ */
+
+
 #ifndef SOCKET_H
 #define SOCKET_H
 

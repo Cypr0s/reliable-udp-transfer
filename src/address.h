@@ -1,8 +1,8 @@
 /** ------------- IPK 2 - RDT ---------------
- * @file    address.h
- * @author  Kristian Luptak (xluptak00)
- * @date    26.4.2026
- * @brief   Header file for address related functions, resolving addresses, ...
+ * @headerfile  address.h
+ * @author      Kristian Luptak (xluptak00)
+ * @date        26.4.2026
+ * @brief       Header file for address related functions, resolving addresses, ...
  */
 
 #ifndef ADDRESS_H

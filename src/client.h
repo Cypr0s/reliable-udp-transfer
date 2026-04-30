@@ -1,3 +1,10 @@
+/** ------------- IPK 2 - RDT ---------------
+ * @headerfile  client.h
+ * @author      Kristian Luptak (xluptak00)
+ * @date        28.4.2026
+ * @brief       Contains declaration of functions which program runs as client
+ */
+
 #ifndef CLIENT_H
 #define CLIENT_H
 
@@ -8,10 +15,14 @@
 #include "error.h"  // errors
 #include "protocol.h"   // header,  ...
 #include "util.h"   // flagsenum
+#include <signal.h> // singal
+
+extern volatile sig_atomic_t status; // signal
 
 #define ITEM_ACK 2
 #define ITEM_FULL 1
 
+// window item
 typedef struct {
     unsigned char data[MAX_PROTOCOL_SIZE];
     uint16_t data_size;
@@ -19,6 +30,7 @@ typedef struct {
     struct timespec sent_time;
 } ClientItem;
 
+// sliding window
 typedef struct {
     ClientItem items[WINDOW_SIZE];
     uint16_t filled_slots;

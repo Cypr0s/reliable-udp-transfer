@@ -7,10 +7,36 @@
 
 #include "ipk_rdt.h"
 
+// https://en.wikipedia.org/wiki/C_signal_handling (taken from project 1)
+volatile sig_atomic_t status = 0;
+
+// SIGINT/ SIGTERM handling function
+static void catch_function(int signo) {
+    status = signo;
+}
+
+
+
+/**
+ * @brief   entry of program
+ */
 int main(int argc, char** argv) {
+
+    // https://en.wikipedia.org/wiki/C_signal_handling setup handling signals (taken from project 1)
+    if (signal(SIGINT, catch_function) == SIG_ERR) {
+        fprintf(stderr, "An error occurred while setting a signal handler.\n");
+        return EXIT_FAILURE;
+    }
+
+    if (signal(SIGTERM, catch_function) == SIG_ERR) {
+        fprintf(stderr, "An error occurred while setting a signal handler.\n");
+        return EXIT_FAILURE;
+    }
+
+    
+    // parse args
     Args args = {0};
     ExitCode exit = EXIT_SUCCESS;
-    // parse args
     exit = parse_arguments(argc, argv, &args);
     if(exit == EXIT_HELP) {
         return EXIT_SUCCESS;
@@ -19,7 +45,6 @@ int main(int argc, char** argv) {
     // other err
     if(exit) return exit;
     
-
     // resolve address / ip
     struct addrinfo* addresses;
     exit = resolve_address(args.address, &addresses, args.port, args.app_side);

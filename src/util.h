@@ -1,3 +1,10 @@
+/** ------------- IPK 2 - RDT ---------------
+ * @headerfile  util.h
+ * @author      Kristian Luptak (xluptak00)
+ * @date        28.4.2026
+ * @brief       Contains Utility functions declarations, struct and enum definitions
+ */
+
 #ifndef UTIL_H
 #define UTIL_H
 
@@ -8,13 +15,13 @@
 #include <unistd.h> // close
 #include <fcntl.h>  // open
 #include "error.h"  // error codes
-#include <time.h>
+#include <time.h>    // struct timespec, CLOCK_MONOTONIC
 
 #define S_TO_MS 1000
 
-#define RESEND_TIMEOUT 256
+#define RESEND_TIMEOUT 500 // miliseconds
 
-#define WINDOW_SIZE 128
+#define WINDOW_SIZE 128  // 128 fast but fails on timeout, 64 also fails sometimes on low timeouts
 
 typedef enum {
     NONE = 0,
@@ -22,6 +29,7 @@ typedef enum {
     CLIENT = 2,
 } AppSideEnum;
 
+// different sent message types
 typedef enum {
     FLAG_SYN = 1,
     FLAG_ACK = 2,
@@ -30,6 +38,7 @@ typedef enum {
     FLAG_DATA = 16,
 } FlagsEnum;
 
+// stores parsed arguments
 typedef struct {
     AppSideEnum app_side;
     uint16_t port;  // port

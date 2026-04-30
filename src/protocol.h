@@ -1,3 +1,12 @@
+/** ------------- IPK 2 - RDT ---------------
+ * @headerfile  protocol.h
+ * @author      Kristian Luptak (xluptak00)
+ * @date        28.4.2026
+ * @brief       Contains definitions of struct of protocol, different macros, 
+ *              declarations of functions
+ */
+
+
 #ifndef PROTOCOL_H
 #define PROTOCOL_H
 
@@ -6,10 +15,11 @@
 #include "error.h"  // exitcode
 
 #define HEADER_SIZE 20
-#define MAX_PROTOCOL_SIZE HEADER_SIZE + MAX_DATA_SIZE
+#define MAX_PROTOCOL_SIZE (HEADER_SIZE + MAX_DATA_SIZE)
 #define MAX_DATA_SIZE 1024
 
 // 5 hours of debugging becuse compiler was aligning differently :)
+// protocol header struct
 #pragma pack(push, 1)
 typedef struct {
     uint32_t conn_id;

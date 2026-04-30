@@ -1,3 +1,10 @@
+/** ------------- IPK 2 - RDT ---------------
+ * @headerfile  server.h
+ * @author      Kristian Luptak (xluptak00)
+ * @date        28.4.2026
+ * @brief       Contains declaration of functions which program runs as server
+ */
+
 #ifndef SERVER_H
 #define SERVER_H
 
@@ -6,6 +13,9 @@
 #include "CLI_parse.h" // ArgsPtr
 #include "socket.h" // socket related
 #include "protocol.h"   // protocol
+#include <signal.h> // singal
+
+extern volatile sig_atomic_t status; // signal
 
 
 #define ITEM_FULL 1

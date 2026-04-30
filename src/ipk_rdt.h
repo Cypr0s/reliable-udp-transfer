@@ -14,6 +14,7 @@
 #include "socket.h"
 #include "server.h"
 #include "client.h"
+#include <signal.h>
 
 
 #endif // IPK_RDT_H

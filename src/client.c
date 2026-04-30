@@ -1,6 +1,24 @@
+/** ------------- IPK 2 - RDT ---------------
+ * @file        client.c
+ * @author      Kristian Luptak (xluptak00)
+ * @date        28.4.2026
+ * @brief       Contains definition of functions which program runs as client
+ */
+
+
 #include "client.h"
 
+/**
+ * @brief           runs the client: connects socket, performs handshake, 
+ *                  receives data and does teardown
+ * @param socket_fd file descriptor of the socket
+ * @param address   address info to bind to
+ * @param args      parsed CLI args
+ * @return          EXIT_SUCCESS on success
+ *                  different error codes on error
+ */
 ExitCode run_as_client(int32_t socket_fd, struct addrinfo* address, ArgsPtr args) {
+    // open in fd
     int32_t in_fd = open_file(args->file_in, args->app_side);
     ExitCode exit = EXIT_SUCCESS;
     if(in_fd == -1) return EXIT_OPEN;
@@ -21,11 +39,12 @@ ExitCode run_as_client(int32_t socket_fd, struct addrinfo* address, ArgsPtr args
         }
         return EXIT_SOCKET;
     }
-
+    // generate random seq and conn id
     uint32_t conn_id, seq;
     conn_id = (uint32_t) rand();
     seq = (uint32_t) rand();
 
+    // handshake
     exit = handle_connection(socket_fd, args->timeout_sec, &seq, conn_id, FLAG_SYN);
     if(exit) {
         if(in_fd != STDERR_FILENO && in_fd != STDIN_FILENO && in_fd != STDOUT_FILENO) {
@@ -34,6 +53,7 @@ ExitCode run_as_client(int32_t socket_fd, struct addrinfo* address, ArgsPtr args
         return exit;
     }
 
+    // data transfer
     exit = send_data(socket_fd, in_fd, args->timeout_sec, &seq, conn_id);
     if(exit) {
         if(in_fd != STDERR_FILENO && in_fd != STDIN_FILENO && in_fd != STDOUT_FILENO) {
@@ -42,6 +62,7 @@ ExitCode run_as_client(int32_t socket_fd, struct addrinfo* address, ArgsPtr args
         return exit;
     }
 
+    // teardown
     exit = handle_connection(socket_fd, args->timeout_sec, &seq, conn_id, FLAG_FIN);
     
     if(in_fd != STDERR_FILENO && in_fd != STDIN_FILENO && in_fd != STDOUT_FILENO) {
@@ -50,6 +71,12 @@ ExitCode run_as_client(int32_t socket_fd, struct addrinfo* address, ArgsPtr args
     return exit;
 }
 
+/**
+ * @brief   handles connection establishment or teardown (SYN or FIN)
+ *          eg. SYN->SYN,ack->ACK
+ * @return  EXIT_SUCCESS on success, 
+ *          different error codes on error
+ */
 ExitCode handle_connection(int32_t socket_fd, 
                                 uint32_t max_timeout, 
                                 uint32_t* seq,
@@ -57,12 +84,10 @@ ExitCode handle_connection(int32_t socket_fd,
                                 FlagsEnum H_F_flag
                             ) {
     // create first packet SYN / FIN
-
     unsigned char message[MAX_PROTOCOL_SIZE];
-    
     create_header(H_F_flag, NULL, 0, message, conn_id, (*seq)++, 0);
 
-    // start timeout
+    // start global timeout
     struct timespec last_timeout;
     if(clock_gettime(CLOCK_MONOTONIC, &last_timeout) != 0) {
         perror("clock_gettime");
@@ -71,12 +96,14 @@ ExitCode handle_connection(int32_t socket_fd,
 
     ExitCode exit = EXIT_SUCCESS;
     while(1) {
+        // send packet
         int32_t bytes = send(socket_fd, message, HEADER_SIZE, 0);
         if(bytes <= 0) {
             perror("sendto");
             return EXIT_SOCKET;
         }
 
+        // wait for DEFAULT TIMEOUT seconds
         int32_t received = recv(socket_fd, message, MAX_PROTOCOL_SIZE, 0);
         exit = resolve_timeout(last_timeout, max_timeout * S_TO_MS);
         if(exit) {
@@ -85,22 +112,23 @@ ExitCode handle_connection(int32_t socket_fd,
         }
 
         if(received <= 0) {
+            // nothing received
             if(errno == EAGAIN || errno == EWOULDBLOCK) continue;
             return EXIT_SOCKET;
         }
         if(check_malformed((unsigned char*)message, received) != EXIT_SUCCESS) continue;
 
-        // check for valid packet
+        // check for valid message
         ProtocolHeaderPtr header = (ProtocolHeaderPtr) message;
         if(header->conn_id != conn_id) continue;
+
         if(header->flags != (FLAG_ACK | H_F_flag)) continue;
-        if(header->ack_num == *seq) break;
+        if(header->ack_num == *seq) break; // valid message
     }
 
-    // send ack back
+    // send ack back, return
     ProtocolHeaderPtr header = (ProtocolHeaderPtr) message;
     create_header(FLAG_ACK, NULL, 0, message, conn_id, 0, header->seq_num + 1);
-    // send
     int32_t bytes = send(socket_fd, message, HEADER_SIZE, 0);
     if(bytes <= 0) {
         perror("sendto");
@@ -108,9 +136,14 @@ ExitCode handle_connection(int32_t socket_fd,
     }
     (*seq)++;
     return EXIT_SUCCESS;
-}
+} // handle connection
 
 
+/**
+ * @brief sends data to server using a selective repeat, 
+ *        inspired by: https://en.wikipedia.org/wiki/C_signal_handling
+ * 
+ */
 ExitCode send_data(int32_t socket_fd, 
                         int32_t in_file,
                         uint32_t max_timeout, 
@@ -122,11 +155,11 @@ ExitCode send_data(int32_t socket_fd,
     uint32_t window_start = *seq % WINDOW_SIZE;
     ExitCode exit = EXIT_SUCCESS;
 
-    // for data reading
+    // data reading array
     unsigned char data[MAX_DATA_SIZE];
     int32_t data_size;
 
-    // message sending
+    // message sending array
     unsigned char message[MAX_PROTOCOL_SIZE];
     unsigned char eof = 0;
 
@@ -139,9 +172,10 @@ ExitCode send_data(int32_t socket_fd,
 
     // infinite loop
     while(!eof || window.filled_slots > 0) {
-        // send messages
+        // send messages part
+        // read until eof and windoow is not empty
         while(!eof && window.filled_slots < WINDOW_SIZE) {
-            // read data
+            // read data until eof
             data_size = read(in_file, data, MAX_DATA_SIZE);
             if(data_size == 0) {
                 eof = 1;
@@ -169,7 +203,8 @@ ExitCode send_data(int32_t socket_fd,
             window.filled_slots++;
             (*seq)++;
         }
-        // handle responses
+
+        // handle responses part
         while(1) {
             int32_t received = recv(socket_fd, message, MAX_PROTOCOL_SIZE, 0);
             // no responses found
@@ -177,21 +212,22 @@ ExitCode send_data(int32_t socket_fd,
                 if(errno == EAGAIN || errno == EWOULDBLOCK) break;
                 return EXIT_SOCKET;
             }
+            // message found validate it
             if(check_malformed((unsigned char*)message, received) != EXIT_SUCCESS) continue;
 
             ProtocolHeaderPtr header = (ProtocolHeaderPtr) message;
             // check for correct packet
             if(header->conn_id != conn_id || header->flags != FLAG_ACK) continue;
-            // reset timeout valid ack packet
+
+            // reset timeout, valid ack packet
             if(clock_gettime(CLOCK_MONOTONIC, &last_timeout) != 0) {
                 perror("clock_gettime");
                 return EXIT_CLOCK;
             }
+        
             // check whether its in window
             for(uint16_t i = 0; i < WINDOW_SIZE; i++) {
-                if(!(window.items[i].flags & ITEM_FULL)) {
-                    continue;
-                }
+                if(!(window.items[i].flags & ITEM_FULL)) continue;
                 if(((ProtocolHeaderPtr)window.items[i].data)->seq_num + 1 == header->ack_num) {
                     // set acked
                     window.items[i].flags |= ITEM_ACK;
@@ -199,27 +235,28 @@ ExitCode send_data(int32_t socket_fd,
             }
         }
 
-        // handle retransmits
+        // handle retransmits part
         for(uint16_t i = 0; i < WINDOW_SIZE; i++) {
-            if(!(window.items[i].flags & ITEM_FULL)) {
-                    continue;
+            // check whether acked and not empty
+            if(!(window.items[i].flags & ITEM_FULL)) continue;
+            if(window.items[i].flags & ITEM_ACK) continue;
+
+            // resend if timout passed
+            if(!resolve_timeout(window.items[i].sent_time, RESEND_TIMEOUT)) continue;
+
+            int32_t bytes = send(socket_fd, window.items[i].data, window.items[i].data_size, 0);
+            if(bytes <= 0) {
+                perror("sendto");
+                return EXIT_SOCKET;
             }
-            if(resolve_timeout(window.items[i].sent_time, RESEND_TIMEOUT) && !(window.items[i].flags & ITEM_ACK)) {
-                // resend
-                int32_t bytes = send(socket_fd, window.items[i].data, window.items[i].data_size, 0);
-                if(bytes <= 0) {
-                    perror("sendto");
-                    return EXIT_SOCKET;
-                }
-                // reset timer
-                if(clock_gettime(CLOCK_MONOTONIC, &window.items[i].sent_time) != 0) {
-                    perror("clock_gettime");
-                    return EXIT_CLOCK;
-                }
+            // reset timer
+            if(clock_gettime(CLOCK_MONOTONIC, &window.items[i].sent_time) != 0) {
+                perror("clock_gettime");
+                return EXIT_CLOCK;
             }
         }
 
-        // check timeout
+        // check whether global timeout passed
         exit = resolve_timeout(last_timeout, max_timeout * S_TO_MS);
         if(exit) {
             fprintf(stderr, "Maximum timeout time has passed\n");
@@ -240,5 +277,6 @@ ExitCode send_data(int32_t socket_fd,
             window_start =(window_start + 1) % WINDOW_SIZE;
         }
     }
+    // valid transmit
     return EXIT_SUCCESS;
-}
+} // send_data

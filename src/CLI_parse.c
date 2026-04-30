@@ -1,5 +1,5 @@
 /** ------------- IPK 2 - RDT ---------------
- * @headerfile  CLI_parse.c
+ * @file        CLI_parse.c
  * @author      Kristian Luptak (xluptak00)
  * @date        26.4.2026
  * @brief       CLI argument parsing module
