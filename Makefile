@@ -52,7 +52,7 @@ test: all
 
 # zip
 zip:
-	zip -r $(ZIP_NAME).zip Makefile LICENSE CHANGELOG.md README.md src -x *.o
+	zip -r $(ZIP_NAME).zip Makefile LICENSE CHANGELOG.md README.md src img test.sh -x *.o 
 
 # clean
 clean:
