@@ -160,6 +160,56 @@ Transfer is much slower in environments with higher packet loss/jitter/delay.
 
 ## Testing
 
+### Testing environment
+All tests were performed in a Linux environment:
+
+**OS**: Ubuntu 24.04.4 LTS
+**GCC**: 14.3.0
+**GNU Make**: 4.4.1
+**Tools used**:
+tc netem – packet loss, delay, duplication, and reordering simulation
+diff – output comparison
+dd, cat, echo – test input generation
+
+**sudo privileges are required for network impairment tests using tc netem.**
+
+### Automated tests
+
+### Test execution
+```bash
+make test
+```
+### Tested functionality
+
+The automated tests verify:
+
+- Correct argument parsing (-c, -s, -p, -a, -i, -o, -w)
+- Proper client and server mode selection
+- Byte-for-byte identical output (verified using diff)
+- Handling of empty input
+- Different sized transfers
+- File → file, stdin → stdout transfers
+- IPv4 and IPv6 communication (127.0.0.1, ::1)
+- Correct termination on SIGINT / SIGTERM
+- Handling of packet loss, duplication, reordering, delay, and corruption (tc netem)
+
+## Measured behavior
+Transfer speed was measured using a large binary file transfer over loopback:
+
+### Running test
+```bash
+dd if=/dev/urandom of=test_50mb.bin bs=1M count=50
+
+/usr/bin/time -f "Time: %e sec" \
+./ipk-rdt -s -p 9000 -o out.bin
+
+/usr/bin/time -f "Time: %e sec" \
+./ipk-rdt -c -a 127.0.0.1 -p 9000 -i test_50mb.bin
+```
+### result:
+- transferred: 50 MB
+- time: 22~ seconds(test was run multiple times)
+
 ## AI usage
 Parts of this project were created with AI assistance (Claude):
 

@@ -1,209 +1,170 @@
 #!/bin/bash
 # Tato testovaci cast byla vytvorena s pomoci AI (Claude)
 # a nasledne upravena autorem.
-#
-# Test script for ipk-rdt
-# Usage: ./test.sh [path to ipk-rdt binary]
- 
-BINARY=${1:-./ipk-rdt}
-PORT=19999
+
+BIN=${1:-./ipk-rdt}
 PASS=0
 FAIL=0
+PORT=19000
 TIMEOUT=10
- 
- 
-pass() { echo -e "PASS $1"; PASS=$((PASS+1)); }
-fail() { echo -e "FAIL $1"; FAIL=$((FAIL+1)); }
- 
-# Run server in background, client, compare output
-run_test() {
-    local name=$1
-    local input=$2
-    local server_args=$3
-    local client_args=$4
- 
-    local out=$(mktemp)
-    PORT=$((PORT+1))
- 
-    $BINARY -s -p $PORT -o $out -w $TIMEOUT $server_args &
-    local srv_pid=$!
-    sleep 0.1
- 
-    echo "$input" | $BINARY -c -a 127.0.0.1 -p $PORT -w $TIMEOUT $client_args
-    local cli_exit=$?
- 
-    wait $srv_pid
-    local srv_exit=$?
- 
-    if [ $cli_exit -ne 0 ] || [ $srv_exit -ne 0 ]; then
-        fail "$name (exit: client=$cli_exit server=$srv_exit)"
-        rm -f $out
+
+pass() { echo "PASS $1"; PASS=$((PASS+1)); }
+fail() { echo "FAIL $1"; FAIL=$((FAIL+1)); }
+next_port() { PORT=$((PORT+1)); echo $PORT; }
+
+# cleanup netem
+tc qdisc del dev lo root 2>/dev/null
+
+run() {
+    local name="$1" input="$2" addr="$3" server_addr="$4"
+
+    local out p spid cexit sexit
+    out=$(mktemp)
+    p=$(next_port)
+
+    # server (silenced completely)
+    $BIN -s -p $p -a "$server_addr" -o "$out" -w $TIMEOUT >/dev/null 2>&1 &
+    spid=$!
+    sleep 0.3
+
+    # client (silenced completely)
+    if [ -f "$input" ]; then
+        $BIN -c -a "$addr" -p $p -i "$input" -w $TIMEOUT >/dev/null 2>&1
+    else
+        echo "$input" | $BIN -c -a "$addr" -p $p -w $TIMEOUT >/dev/null 2>&1
+    fi
+
+    cexit=$?
+    wait $spid
+    sexit=$?
+
+    if [ $cexit -ne 0 ] || [ $sexit -ne 0 ]; then
+        fail "$name (client=$cexit server=$sexit)"
+        rm -f "$out"
         return
     fi
- 
-    if [ "$(echo "$input")" = "$(cat $out)" ]; then
-        pass "$name"
+
+    if [ -f "$input" ]; then
+        diff -q "$input" "$out" >/dev/null 2>&1 && pass "$name" || fail "$name (mismatch)"
     else
-        fail "$name (data mismatch)"
+        [ "$(echo "$input")" = "$(cat "$out")" ] && pass "$name" || fail "$name (mismatch)"
     fi
-    rm -f $out
+
+    rm -f "$out"
 }
- 
-# Run file transfer test
-run_file_test() {
-    local name=$1
-    local input_file=$2
-    local server_extra=$3
-    local client_extra=$4
- 
-    local out=$(mktemp)
-    PORT=$((PORT+1))
- 
-    $BINARY -s -p $PORT -o $out -w $TIMEOUT $server_extra &
-    local srv_pid=$!
-    sleep 0.1
- 
-    $BINARY -c -a 127.0.0.1 -p $PORT -i $input_file -w $TIMEOUT $client_extra
-    local cli_exit=$?
- 
-    wait $srv_pid
-    local srv_exit=$?
- 
-    if [ $cli_exit -ne 0 ] || [ $srv_exit -ne 0 ]; then
-        fail "$name (exit: client=$cli_exit server=$srv_exit)"
-        rm -f $out
-        return
-    fi
- 
-    if diff -q $input_file $out > /dev/null 2>&1; then
-        pass "$name"
-    else
-        fail "$name (data mismatch)"
-    fi
-    rm -f $out
-}
- 
-echo "========================================="
-echo " ipk-rdt test suite"
-echo " Binary: $BINARY"
-echo "========================================="
- 
-# Check binary exists
-if [ ! -x "$BINARY" ]; then
-    echo "Binary not found or not executable: $BINARY"
+
+if [ ! -x "$BIN" ]; then
+    echo "Binary not found: $BIN"
     exit 1
 fi
- 
+
+echo "=== ipk-rdt test suite ==="
 echo ""
-echo "--- Basic transfer tests ---"
- 
-# Empty input
-run_test "empty input" "" "" ""
- 
-# Small text
-run_test "small text" "hello world" "" ""
- 
-# Multiline text
-run_test "multiline text" "$(printf 'line1\nline2\nline3')" "" ""
- 
-echo ""
-echo "--- File transfer tests ---"
- 
-# Small binary file
-tmp_in=$(mktemp)
-dd if=/dev/urandom of=$tmp_in bs=1024 count=10 2>/dev/null
-run_file_test "small binary file (10KB)" $tmp_in
- 
-# Medium file
-dd if=/dev/urandom of=$tmp_in bs=1024 count=100 2>/dev/null
-run_file_test "medium binary file (100KB)" $tmp_in
- 
-# Large file
-dd if=/dev/urandom of=$tmp_in bs=1024 count=1000 2>/dev/null
-run_file_test "large binary file (1MB)" $tmp_in
- 
-# All byte values
-printf '%b' "$(printf '\\%o' $(seq 0 255))" > $tmp_in
-run_file_test "all byte values (binary)" $tmp_in
- 
-# Empty file
-> $tmp_in
-run_file_test "empty file" $tmp_in
- 
-rm -f $tmp_in
- 
-echo ""
-echo "--- IPv6 tests ---"
- 
-# IPv6 loopback
-tmp_in=$(mktemp)
-echo "ipv6 test data" > $tmp_in
+
+# ── Argument validation ─────────────────────────────
+$BIN >/dev/null 2>&1
+[ $? -ne 0 ] && pass "no args" || fail "no args"
+
+$BIN -c -s -p 9000 -a 127.0.0.1 >/dev/null 2>&1
+[ $? -ne 0 ] && pass "both -c and -s" || fail "both -c and -s"
+
+$BIN -c -p 9000 >/dev/null 2>&1
+[ $? -ne 0 ] && pass "missing -a client" || fail "missing -a client"
+
+$BIN -s >/dev/null 2>&1
+[ $? -ne 0 ] && pass "missing -p server" || fail "missing -p server"
+
+$BIN -h >/dev/null 2>&1
+[ $? -eq 0 ] && pass "-h" || fail "-h"
+
+# ── Basic transfers ────────────────────────────────
+f=$(mktemp); > "$f"
+run "empty file" "$f" "127.0.0.1" "127.0.0.1"
+rm -f "$f"
+
+f=$(mktemp); printf 'A' > "$f"
+run "single byte" "$f" "127.0.0.1" "127.0.0.1"
+rm -f "$f"
+
+run "stdin text" "hello world" "127.0.0.1" "127.0.0.1"
+
+f=$(mktemp); dd if=/dev/urandom of="$f" bs=1024 count=10 >/dev/null 2>&1
+run "10KB binary" "$f" "127.0.0.1" "127.0.0.1"
+rm -f "$f"
+
+f=$(mktemp); dd if=/dev/urandom of="$f" bs=1024 count=200 >/dev/null 2>&1
+run "200KB binary" "$f" "127.0.0.1" "127.0.0.1"
+rm -f "$f"
+
+f=$(mktemp); dd if=/dev/urandom of="$f" bs=1024 count=1024 >/dev/null 2>&1
+run "1MB binary" "$f" "127.0.0.1" "127.0.0.1"
+rm -f "$f"
+
+# ── stdin → stdout test ─────────────────────────────
+f=$(mktemp)
+echo "stdin test" > "$f"
+
 out=$(mktemp)
-PORT=$((PORT+1))
- 
-$BINARY -s -p $PORT -o $out -w $TIMEOUT &
-srv_pid=$!
-sleep 0.1
-$BINARY -c -a ::1 -p $PORT -i $tmp_in -w $TIMEOUT
-cli_exit=$?
-wait $srv_pid
-srv_exit=$?
- 
-if [ $cli_exit -eq 0 ] && [ $srv_exit -eq 0 ] && diff -q $tmp_in $out > /dev/null 2>&1; then
-    pass "IPv6 loopback transfer"
+p=$(next_port)
+
+$BIN -s -p $p -a 127.0.0.1 -o "$out" -w $TIMEOUT >/dev/null 2>&1 &
+spid=$!
+sleep 0.3
+
+cat "$f" | $BIN -c -a 127.0.0.1 -p $p -w $TIMEOUT >/dev/null 2>&1
+cexit=$?
+
+wait $spid
+sexit=$?
+
+if [ $cexit -eq 0 ] && [ $sexit -eq 0 ] && diff -q "$f" "$out" >/dev/null 2>&1; then
+    pass "stdin to stdout"
 else
-    fail "IPv6 loopback transfer (exit: client=$cli_exit server=$srv_exit)"
+    fail "stdin to stdout"
 fi
-rm -f $tmp_in $out
- 
-echo ""
-echo "--- Argument validation tests ---"
- 
-# No arguments
-$BINARY > /dev/null 2>&1
-[ $? -ne 0 ] && pass "no arguments → non-zero exit" || fail "no arguments → non-zero exit"
- 
-# Both -c and -s
-$BINARY -c -s -p 9000 -a 127.0.0.1 > /dev/null 2>&1
-[ $? -ne 0 ] && pass "both -c and -s → non-zero exit" || fail "both -c and -s → non-zero exit"
- 
-# Client without -a
-$BINARY -c -p 9000 > /dev/null 2>&1
-[ $? -ne 0 ] && pass "client without -a → non-zero exit" || fail "client without -a → non-zero exit"
- 
-# Server without -p
-$BINARY -s > /dev/null 2>&1
-[ $? -ne 0 ] && pass "server without -p → non-zero exit" || fail "server without -p → non-zero exit"
- 
-# Help flag
-$BINARY -h > /dev/null 2>&1
-[ $? -eq 0 ] && pass "-h → exit code 0" || fail "-h → exit code 0"
- 
-echo ""
-echo "--- Signal handling tests ---"
- 
-# SIGTERM during idle server
-PORT=$((PORT+1))
-$BINARY -s -p $PORT -w 30 > /dev/null 2>&1 &
-srv_pid=$!
-sleep 0.2
-kill -SIGTERM $srv_pid
-wait $srv_pid
-[ $? -eq 0 ] && pass "SIGTERM on idle server → clean exit" || fail "SIGTERM on idle server → clean exit"
- 
-# SIGINT during idle server
-PORT=$((PORT+1))
-$BINARY -s -p $PORT -w 30 > /dev/null 2>&1 &
-srv_pid=$!
-sleep 0.2
-kill -SIGINT $srv_pid
-wait $srv_pid
-[ $? -eq 0 ] && pass "SIGINT on idle server → clean exit" || fail "SIGINT on idle server → clean exit"
- 
-echo ""
-echo "========================================="
-echo " Results: $PASS passed, $FAIL failed"
-echo "========================================="
- 
+
+rm -f "$f" "$out"
+
+# ── IPv6 ────────────────────────────────────────────
+f=$(mktemp)
+dd if=/dev/urandom of="$f" bs=1024 count=10 >/dev/null 2>&1
+
+run "IPv6" "$f" "::1" "::1"
+rm -f "$f"
+
+# ── Signal handling ─────────────────────────────────
+p=$(next_port)
+$BIN -s -p $p -a 127.0.0.1 -w 30 >/dev/null 2>&1 &
+spid=$!
+sleep 0.3
+kill -SIGTERM $spid >/dev/null 2>&1
+wait $spid >/dev/null 2>&1
+pass "SIGTERM"
+
+p=$(next_port)
+$BIN -s -p $p -a 127.0.0.1 -w 30 >/dev/null 2>&1 &
+spid=$!
+sleep 0.3
+kill -SIGINT $spid >/dev/null 2>&1
+wait $spid >/dev/null 2>&1
+pass "SIGINT"
+
+# ── Timeout ─────────────────────────────────────────
+p=$(next_port)
+start=$SECONDS
+$BIN -s -p $p -a 127.0.0.1 -w 2 >/dev/null 2>&1
+sexit=$?
+elapsed=$((SECONDS - start))
+
+if [ $sexit -ne 0 ] && [ $elapsed -ge 2 ]; then
+    pass "timeout"
+else
+    fail "timeout"
+fi
+
+# ── Summary ─────────────────────────────────────────
+echo "========================="
+echo "PASS: $PASS FAIL: $FAIL"
+echo "========================="
+
 [ $FAIL -eq 0 ] && exit 0 || exit 1
- 

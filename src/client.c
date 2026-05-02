@@ -106,6 +106,12 @@ ExitCode handle_connection(int32_t socket_fd,
             }
             return EXIT_SIGNAL;
         }
+        // wait for DEFAULT TIMEOUT seconds
+        exit = resolve_timeout(last_timeout, max_timeout * S_TO_MS);
+        if(exit) {
+            fprintf(stderr, "Maximum timeout time has passed\n");
+            return exit;
+        }
         // send packet
         int32_t bytes = send(socket_fd, message, HEADER_SIZE, 0);
         if(bytes <= 0) {
@@ -113,17 +119,12 @@ ExitCode handle_connection(int32_t socket_fd,
             return EXIT_SOCKET;
         }
 
-        // wait for DEFAULT TIMEOUT seconds
         int32_t received = recv(socket_fd, message, MAX_PROTOCOL_SIZE, 0);
-        exit = resolve_timeout(last_timeout, max_timeout * S_TO_MS);
-        if(exit) {
-            fprintf(stderr, "Maximum timeout time has passed\n");
-            return exit;
-        }
 
         if(received <= 0) {
             // nothing received
             if(errno == EAGAIN || errno == EWOULDBLOCK) continue;
+            fprintf(stderr,"recv: nothing received");
             return EXIT_SOCKET;
         }
         if(check_malformed((unsigned char*)message, received) != EXIT_SUCCESS) continue;
@@ -132,7 +133,7 @@ ExitCode handle_connection(int32_t socket_fd,
         ProtocolHeaderPtr header = (ProtocolHeaderPtr) message;
         if(header->conn_id != conn_id) continue;
         if(header->flags == FLAG_RST) return EXIT_SIGNAL;
-        if(header->flags != (FLAG_ACK | H_F_flag)) continue;
+        if(header->flags != (FLAG_ACK + H_F_flag)) continue;
         if(header->ack_num == *seq) break; // valid message
     }
 
@@ -230,6 +231,7 @@ ExitCode send_data(int32_t socket_fd,
             // no responses found
             if(received <= 0) {
                 if(errno == EAGAIN || errno == EWOULDBLOCK) break;
+                fprintf(stderr,"recv: nothing received");
                 return EXIT_SOCKET;
             }
             // message found validate it
