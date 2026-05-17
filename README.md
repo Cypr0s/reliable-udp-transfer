@@ -7,7 +7,8 @@ Protocol safely transfers files despite packet loss, duplicates, corruption and 
 The protocol is inspired by TCP heavily, essentially making it simpler TCP and it uses selective repeat principle for sending the data.
 My main implementation goal was not using heap allocation at all, so project only uses *static allocation* and *stack*.
 
-This implementation was created as an assignment for the VUT FIT IPK course.
+This implementation was created based on the VUT FIT IPK course assignment.
+For details, see: https://git.fit.vutbr.cz/NESFIT/IPK-Project2
 
 
 ## Build
