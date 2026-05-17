@@ -1,11 +1,11 @@
-/** ------------- IPK 2 - RDT ---------------
- * @file    ipk_rdt.c
+/** ------------- Reliable UDP Transfer ---------------
+ * @file    rdt.c
  * @author  Kristian Luptak (xluptak00)
  * @date    26.4.2026
  * @brief   Main file for the RDT
  */
 
-#include "ipk_rdt.h"
+#include "rdt.h"
 
 // https://en.wikipedia.org/wiki/C_signal_handling (taken from project 1)
 volatile sig_atomic_t status = 0;

@@ -1,4 +1,4 @@
-# ------------- IPK 2 - RDT ---------------
+# ------------- Reliable UDP Transfer ---------------
 #	file:	Makefile
 # 	Author: Kristian Luptak <xluptak00>
 #	date: 	26.4.2026
@@ -9,7 +9,7 @@ CC=gcc
 CFLAGS= -std=gnu17 -pedantic -Wall -Wextra -g
 FILE_LOC= src/
 
-OBJ= 	ipk_rdt.o			\
+OBJ= 	rdt.o			\
 		CLI_parse.o			\
 		address.o			\
 		client.o			\
@@ -19,7 +19,7 @@ OBJ= 	ipk_rdt.o			\
 		util.o				
 
 		
-OUT= ipk-rdt
+OUT= reliable-udp-transfer
 
 #utils
 DEVSHELL=c

@@ -1,4 +1,4 @@
-/** ------------- IPK 2 - RDT ---------------
+/** ------------- Reliable UDP Transfer ---------------
  * @headerfile  error.h
  * @author      Kristian Luptak (xluptak00)
  * @date        26.4.2026

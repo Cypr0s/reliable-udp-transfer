@@ -1,13 +1,13 @@
-/** ------------- IPK 2 - RDT ---------------
- * @headerfile  ipk_rdt.h
+/** ------------- Reliable UDP Transfer ---------------
+ * @headerfile  rdt.h
  * @author      Kristian Luptak (xluptak00)
  * @date        26.4.2026
  * @brief       Main file for the RDT
  */
 
 
-#ifndef IPK_RDT_H
-#define IPK_RDT_H
+#ifndef RDT_H
+#define RDT_H
 
 #include "CLI_parse.h"
 #include "address.h"
@@ -17,4 +17,4 @@
 #include <signal.h>
 
 
-#endif // IPK_RDT_H
+#endif // RDT_H

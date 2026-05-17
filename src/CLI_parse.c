@@ -1,4 +1,4 @@
-/** ------------- IPK 2 - RDT ---------------
+/** ------------- Reliable UDP Transfer ---------------
  * @file        CLI_parse.c
  * @author      Kristian Luptak (xluptak00)
  * @date        26.4.2026
@@ -10,9 +10,9 @@
 #define BASE 10
 
 const char* help_message = "Server\n"
-                           "./ipk-rdt -s -p PORT [-a ADDRESS] [-o OUTPUT] [-w TIMEOUT] [-h | --help]\n"
+                           "./reliable-udp-transfer -s -p PORT [-a ADDRESS] [-o OUTPUT] [-w TIMEOUT] [-h | --help]\n"
                            "Client\n"
-                           "./ipk-rdt -c -a HOST -p PORT [-i INPUT] [-w TIMEOUT] [-h | --help]\n";
+                           "./reliable-udp-transfer -c -a HOST -p PORT [-i INPUT] [-w TIMEOUT] [-h | --help]\n";
 
 /**
  * @brief       parses arguments into ArgsPtr struct, checks for CLI errors

@@ -1,4 +1,4 @@
-/** ------------- IPK 2 - RDT ---------------
+/** ------------- Reliable UDP Transfer ---------------
  * @file    address.c
  * @author  Kristian Luptak (xluptak00)
  * @date    26.4.2026

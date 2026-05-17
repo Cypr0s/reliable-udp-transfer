@@ -1,11 +1,13 @@
-# IPK project 2 - Reliable File Transfer over UDP
+# Reliable UDP Transfer
 
 ## Overview
 
-This project implements a simple reliable transfer over UDP protocol. 
+This project implements a simple reliable transfer over UDP protocol.
 Protocol safely transfers files despite packet loss, duplicates, corruption and reordering.
 The protocol is inspired by TCP heavily, essentially making it simpler TCP and it uses selective repeat principle for sending the data.
 My main implementation goal was not using heap allocation at all, so project only uses *static allocation* and *stack*.
+
+This implementation was created as an assignment for the VUT FIT IPK course.
 
 
 ## Build
@@ -27,12 +29,12 @@ User must use atleast one type and the meaning of arguments will differ for diff
 
 **Server**
 ```bash
-./ipk-rdt -s -p PORT [-a ADDRESS] [-o OUTPUT] [-w TIMEOUT] [-h | --help]
+./reliable-udp-transfer -s -p PORT [-a ADDRESS] [-o OUTPUT] [-w TIMEOUT] [-h | --help]
 ```
 
 **Client**
 ```bash
-./ipk-rdt -c -a HOST -p PORT [-i INPUT] [-w TIMEOUT] [-h | --help]
+./reliable-udp-transfer -c -a HOST -p PORT [-i INPUT] [-w TIMEOUT] [-h | --help]
 ```
 
 ### Arguments
@@ -57,13 +59,13 @@ Atleast one of `-c` or `s`, port `p`, address `-a` for client only.
 
 ```bash
 # File to file transfer
-./ipk-rdt -s -p 9000 -o received.bin
-./ipk-rdt -c -a 127.0.0.1 -p 9000 -i sample.bin
+./reliable-udp-transfer -s -p 9000 -o received.bin
+./reliable-udp-transfer -c -a 127.0.0.1 -p 9000 -i sample.bin
 ```
 ```bash
 # Stdin to Stdout transfer
-./ipk-rdt -s -p 9000
-printf 'IPK\n' | ./ipk-rdt -c -a 127.0.0.1 -p 9000
+./reliable-udp-transfer -s -p 9000
+printf 'IPK\n' | ./reliable-udp-transfer -c -a 127.0.0.1 -p 9000
 ```
 
 ## Header format
@@ -201,10 +203,10 @@ Transfer speed was measured using a large binary file transfer over loopback:
 dd if=/dev/urandom of=test_50mb.bin bs=1M count=50
 
 /usr/bin/time -f "Time: %e sec" \
-./ipk-rdt -s -p 9000 -o out.bin
+./reliable-udp-transfer -s -p 9000 -o out.bin
 
 /usr/bin/time -f "Time: %e sec" \
-./ipk-rdt -c -a 127.0.0.1 -p 9000 -i test_50mb.bin
+./reliable-udp-transfer -c -a 127.0.0.1 -p 9000 -i test_50mb.bin
 ```
 ### result:
 - transferred: 50 MB

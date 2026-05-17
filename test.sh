@@ -2,7 +2,7 @@
 # Tato testovaci cast byla vytvorena s pomoci AI (Claude)
 # a nasledne upravena autorem.
 
-BIN=${1:-./ipk-rdt}
+BIN=${1:-./reliable-udp-transfer}
 PASS=0
 FAIL=0
 PORT=19000
@@ -58,7 +58,7 @@ if [ ! -x "$BIN" ]; then
     exit 1
 fi
 
-echo "=== ipk-rdt test suite ==="
+echo "=== reliable-udp-transfer test suite ==="
 echo ""
 
 # ── Argument validation ─────────────────────────────
